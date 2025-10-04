@@ -66,7 +66,7 @@ export function LoginForm({ onSuccess }) {
     <Card className="w-full max-w-md">
       <CardHeader>
         <CardTitle>
-          {showForgotPassword ? "Reset Password" : "Sign In"}
+          {showForgotPassword ? "Reset Password" : ""}
         </CardTitle>
         <CardDescription>
           {showForgotPassword
@@ -103,6 +103,7 @@ export function LoginForm({ onSuccess }) {
               <Input
                 id="password"
                 type="password"
+                placeholder="Enter password"
                 {...register("password", { required: "Password is required" })}
               />
               {errors.password && (

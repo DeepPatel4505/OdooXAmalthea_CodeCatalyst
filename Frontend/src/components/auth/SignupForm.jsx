@@ -109,7 +109,7 @@ export function SignupForm({ onSuccess }) {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Create Account</CardTitle>
+        <CardTitle></CardTitle>
         <CardDescription>
           Set up your expense management account
         </CardDescription>
@@ -204,6 +204,7 @@ export function SignupForm({ onSuccess }) {
             <Input
               id="password"
               type="password"
+              placeholder="Enter password"
               {...register("password", {
                 required: "Password is required",
                 minLength: {
