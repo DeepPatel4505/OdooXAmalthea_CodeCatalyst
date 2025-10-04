@@ -38,6 +38,9 @@ import { UserManagement } from "@/pages/admin/UserManagement";
 import { ApprovalRules } from "@/pages/admin/ApprovalRules";
 import { CompanySettings } from "@/pages/admin/CompanySettings";
 
+// Reports Pages
+import { Reports } from "@/pages/Reports";
+
 // Protected Route Component
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, isAuthenticated } = useAuth();
@@ -316,12 +319,7 @@ function AppContent() {
           path="/manager/reports"
           element={
             <ProtectedRoute allowedRoles={["manager", "admin"]}>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold">Reports</h1>
-                <p className="text-muted-foreground">
-                  Manager reports coming soon...
-                </p>
-              </div>
+              <Reports />
             </ProtectedRoute>
           }
         />
@@ -371,12 +369,7 @@ function AppContent() {
           path="/admin/reports"
           element={
             <ProtectedRoute allowedRoles={["admin"]}>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold">Reports</h1>
-                <p className="text-muted-foreground">
-                  Admin reports coming soon...
-                </p>
-              </div>
+              <Reports />
             </ProtectedRoute>
           }
         />
