@@ -415,7 +415,7 @@ function App() {
       <AuthProvider>
         <ToastProvider>
           <AppContent />
-          <Toaster position="top-right" richColors />
+          <Toaster position="bottom-right" richColors />
         </ToastProvider>
       </AuthProvider>
     </ThemeProvider>

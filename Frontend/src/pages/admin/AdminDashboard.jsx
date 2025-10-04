@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { expenseAPI, userAPI, approvalAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // Remove mock data - will be replaced with real API data
 const mockRecentActivity = [
@@ -250,13 +251,13 @@ export function AdminDashboard() {
         setShowApprovalModal(false);
         setApprovalComment("");
         setSelectedExpense(null);
-        alert("Expense approved successfully!");
+        toast.success("Expense approved successfully!");
       } else {
         throw new Error(response.message || "Approval failed");
       }
     } catch (error) {
       console.error("Approval failed:", error);
-      alert("Failed to approve expense. Please try again.");
+      toast.error("Failed to approve expense. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -266,7 +267,7 @@ export function AdminDashboard() {
     if (!selectedExpense) return;
 
     if (!rejectionComment.trim()) {
-      alert("Please provide a reason for rejection.");
+      toast.error("Please provide a reason for rejection.");
       return;
     }
 
@@ -290,13 +291,13 @@ export function AdminDashboard() {
         setShowRejectionModal(false);
         setRejectionComment("");
         setSelectedExpense(null);
-        alert("Expense rejected successfully!");
+        toast.success("Expense rejected successfully!");
       } else {
         throw new Error(response.message || "Rejection failed");
       }
     } catch (error) {
       console.error("Rejection failed:", error);
-      alert("Failed to reject expense. Please try again.");
+      toast.error("Failed to reject expense. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -356,10 +357,10 @@ export function AdminDashboard() {
       link.click();
       document.body.removeChild(link);
 
-      alert("Expenses exported successfully!");
+      toast.success("Expenses exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
-      alert("Failed to export expenses. Please try again.");
+      toast.error("Failed to export expenses. Please try again.");
     }
   };
 

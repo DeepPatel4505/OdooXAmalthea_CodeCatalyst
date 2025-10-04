@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, CheckCircle, Save, Loader2 } from "lucide-react";
 import { expenseAPI } from "@/services/api";
+import { toast } from "sonner";
 
 const EXPENSE_CATEGORIES = [
   "Meals & Entertainment",
@@ -210,14 +211,14 @@ export function ExpenseSubmission() {
       "application/pdf",
     ];
     if (!allowedTypes.includes(file.type)) {
-      alert("Please upload a valid image (JPEG, PNG) or PDF file");
+      toast.error("Please upload a valid image (JPEG, PNG) or PDF file");
       return;
     }
 
     // Validate file size (10MB limit)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      alert("File size must be less than 10MB");
+      toast.error("File size must be less than 10MB");
       return;
     }
 
@@ -257,7 +258,7 @@ export function ExpenseSubmission() {
       setValue("category", mockOcrData.category);
 
       // Show user-friendly message
-      alert("OCR processing failed. Using mock data for demonstration.");
+      toast.error("OCR processing failed. Using mock data for demonstration.");
     } finally {
       setIsProcessingOcr(false);
     }
@@ -325,7 +326,7 @@ export function ExpenseSubmission() {
       const action = isEditMode ? "updated" : "submitted";
       const statusText =
         status === "DRAFT" ? "saved as draft" : "submitted for approval";
-      alert(
+      toast.success(
         `Expense ${action} successfully! ${
           status === "PENDING"
             ? "It has been submitted for approval."
@@ -337,7 +338,7 @@ export function ExpenseSubmission() {
     } catch (error) {
       console.error("Error saving expense:", error);
       // Show user-friendly error message
-      alert(
+      toast.error(
         `Failed to save expense: ${error.message || "Unknown error occurred"}`
       );
     } finally {

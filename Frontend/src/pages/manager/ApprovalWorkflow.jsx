@@ -22,6 +22,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { expenseAPI, approvalAPI } from "@/services/api";
+import { toast } from "sonner";
 
 export function ApprovalWorkflow() {
   const { id } = useParams();
@@ -83,7 +84,7 @@ export function ApprovalWorkflow() {
       }
     } catch (error) {
       console.error("Approval failed:", error);
-      alert("Failed to approve expense. Please try again.");
+      toast.error("Failed to approve expense. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -109,7 +110,7 @@ export function ApprovalWorkflow() {
       }
     } catch (error) {
       console.error("Rejection failed:", error);
-      alert("Failed to reject expense. Please try again.");
+      toast.error("Failed to reject expense. Please try again.");
     } finally {
       setIsProcessing(false);
     }
