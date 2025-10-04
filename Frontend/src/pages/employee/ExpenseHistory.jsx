@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { expenseAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // Expense categories
 const EXPENSE_CATEGORIES = [
@@ -208,10 +209,10 @@ export function ExpenseHistory() {
       link.click();
       document.body.removeChild(link);
 
-      alert("Expenses exported successfully!");
+      toast.success("Expenses exported successfully!");
     } catch (error) {
       console.error("Export failed:", error);
-      alert("Failed to export expenses. Please try again.");
+      toast.error("Failed to export expenses. Please try again.");
     } finally {
       setIsExporting(false);
     }
