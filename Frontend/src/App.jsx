@@ -9,7 +9,9 @@ import {
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/layout/Layout";
-import { AuthPage } from "@/pages/AuthPage";
+// import { AuthPage } from "@/pages/AuthPage";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { SignupForm } from "@/components/auth/SignupForm";
 
 // Employee Pages
 import { EmployeeDashboard } from "@/pages/employee/EmployeeDashboard";

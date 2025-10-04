@@ -42,9 +42,10 @@ export function Sidebar() {
   const { user } = useAuth();
   const location = useLocation();
 
+
   if (!user) return null;
 
-  const userNavigation = navigation[user.role] || [];
+  const userNavigation = navigation[user.role.toLowerCase()] || [];
 
   return (
     <div className="flex h-full w-64 flex-col bg-sidebar border-r border-sidebar-border">
