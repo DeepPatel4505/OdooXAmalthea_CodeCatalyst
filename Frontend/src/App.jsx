@@ -9,6 +9,7 @@ import {
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/layout/Layout";
+import { LandingPage } from "@/pages/LandingPage";
 // import { AuthPage } from "@/pages/AuthPage";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
@@ -43,9 +44,8 @@ function ProtectedRoute({ children, allowedRoles }) {
   return <Layout>{children}</Layout>;
 }
 
-// Auth Page Component
-function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+// Login Page Component (Sign In Only)
+function LoginPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
@@ -64,26 +64,66 @@ function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Expense Manager</h1>
+          <h1 className="text-3xl font-bold">Sign In</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your expense reimbursements efficiently
+            Welcome back! Please sign in to your account
           </p>
         </div>
 
-        {isLogin ? (
-          <LoginForm onSuccess={handleAuthSuccess} />
-        ) : (
-          <SignupForm onSuccess={handleAuthSuccess} />
-        )}
+        <LoginForm onSuccess={handleAuthSuccess} />
 
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}
+            Don't have an account?
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => navigate("/signup")}
               className="ml-1 text-primary hover:underline"
             >
-              {isLogin ? "Sign up" : "Sign in"}
+              Sign up
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Signup Page Component
+function SignupPage() {
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleAuthSuccess = () => {
+    // The AuthContext will automatically update the authentication state
+    // React Router will handle the navigation based on the user's role
+    // No need to reload the page - just navigate to the default route
+    navigate("/", { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold">Sign Up</h1>
+          <p className="text-muted-foreground mt-2">
+            Create your account to get started
+          </p>
+        </div>
+
+        <SignupForm onSuccess={handleAuthSuccess} />
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Already have an account?
+            <button
+              onClick={() => navigate("/login")}
+              className="ml-1 text-primary hover:underline"
+            >
+              Sign in
             </button>
           </p>
         </div>
@@ -111,7 +151,7 @@ function AppContent() {
   const { user, isLoading } = useAuth();
 
   const getDefaultRoute = () => {
-    if (!user) return "/login";
+    if (!user) return "/landing";
     switch (user.role?.toLowerCase()) {
       case "admin":
         return "/admin";
@@ -120,7 +160,7 @@ function AppContent() {
       case "employee":
         return "/employee";
       default:
-        return "/login";
+        return "/landing";
     }
   };
 
@@ -139,9 +179,12 @@ function AppContent() {
   return (
     <Router>
       <Routes>
+        {/* Landing Page */}
+        <Route path="/landing" element={<LandingPage />} />
+
         {/* Auth Routes */}
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/signup" element={<AuthPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
         {/* Employee Routes */}
@@ -277,8 +320,8 @@ function AppContent() {
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
 
         {/* 404 Route - only for truly invalid routes */}
-        <Route 
-          path="*" 
+        <Route
+          path="*"
           element={
             <div className="min-h-screen flex items-center justify-center bg-background">
               <div className="text-center">
@@ -286,7 +329,7 @@ function AppContent() {
                 <p className="text-muted-foreground mt-2">
                   The page you're looking for doesn't exist.
                 </p>
-                <button 
+                <button
                   onClick={() => window.history.back()}
                   className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                 >
@@ -294,7 +337,7 @@ function AppContent() {
                 </button>
               </div>
             </div>
-          } 
+          }
         />
       </Routes>
     </Router>
