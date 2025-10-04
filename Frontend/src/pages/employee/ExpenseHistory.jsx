@@ -429,8 +429,6 @@ export function ExpenseHistory() {
             </CardContent>
           </Card>
         </TabsContent>
-        }
-
         
         <TabsContent value="new" className="space-y-6">
           {/* Summary Cards */}
