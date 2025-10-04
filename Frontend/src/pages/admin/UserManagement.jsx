@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
-import { Plus, Search, Edit, Trash2, UserPlus, Loader2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, UserPlus, Loader2, Mail } from "lucide-react";
 import { userAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -181,6 +181,19 @@ export function UserManagement() {
     }
   };
 
+  const handleSendPassword = async (userId) => {
+    try {
+      const response = await userAPI.sendPassword(userId);
+    }
+    catch (error) {
+      console.error("Failed to send password:", error);
+      setError(error.message || "Failed to send password");
+    }
+    finally {
+      setIsSendingPassword(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -303,6 +316,13 @@ export function UserManagement() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Button
+                          onClick={() => handleSendPassword(user.id)}
+                          className="bg-blue-100 text-blue-500 hover:text-blue-600 hover:bg-blue-200 cursor-pointer"
+                        >
+                          <Mail className="h-4 w-4" /> Send Password
+                        </Button>                       
+            
+                        {/* <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => setSelectedUser(user)}
@@ -316,7 +336,7 @@ export function UserManagement() {
                           onClick={() => handleDeleteUser(user.id)}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </Button> */}
                       </div>
                     </TableCell>
                   </TableRow>

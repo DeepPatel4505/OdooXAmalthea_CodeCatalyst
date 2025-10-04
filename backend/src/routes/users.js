@@ -3,6 +3,7 @@ import { body, validationResult, query } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
 import prisma from "../config/database.js";
 import bcrypt from "bcryptjs";
+import { sendPasswordEmail } from "../services/emailHandler.js";
 
 const router = express.Router();
 
@@ -299,6 +300,8 @@ router.post("/", requireAdmin, validateCreateUser, async (req, res) => {
         createdAt: true,
       },
     });
+
+    await sendPasswordEmail(email, password);
 
     // console.log("User created successfully:", user);
 
