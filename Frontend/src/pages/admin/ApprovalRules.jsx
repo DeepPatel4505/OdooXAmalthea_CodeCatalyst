@@ -43,6 +43,8 @@ export function ApprovalRules() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showPresetModal, setShowPresetModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteRuleId, setDeleteRuleId] = useState(null);
   const [editingRule, setEditingRule] = useState(null);
   const [newRule, setNewRule] = useState({
     userId: "",
@@ -172,12 +174,17 @@ export function ApprovalRules() {
   };
 
   const handleDeleteRule = async (ruleId) => {
-    if (!confirm("Are you sure you want to delete this approval rule?")) return;
+    setDeleteRuleId(ruleId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteRule = async () => {
+    if (!deleteRuleId) return;
 
     try {
-      console.log("🗑️ Deleting rule:", ruleId);
+      console.log("🗑️ Deleting rule:", deleteRuleId);
       const response = await userApprovalRulesAPI.deleteUserApprovalRule(
-        ruleId
+        deleteRuleId
       );
       
       console.log("🗑️ Delete response:", response);
@@ -219,6 +226,9 @@ export function ApprovalRules() {
     } catch (error) {
       console.error("❌ Failed to delete rule:", error);
       toast.error(`Failed to delete approval rule: ${error.message}`);
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteRuleId(null);
     }
   };
 
@@ -541,6 +551,102 @@ export function ApprovalRules() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Preset Selection Modal */}
+      <Modal
+        isOpen={showPresetModal}
+        onClose={() => setShowPresetModal(false)}
+        title="Apply Preset Rule"
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Select a preset rule to apply to {selectedUser?.firstName} {selectedUser?.lastName}
+          </div>
+          
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {presets.map((preset) => (
+              <div key={preset.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold">{preset.name}</h3>
+                  <Badge variant="outline">Preset</Badge>
+                </div>
+                
+                {preset.description && (
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {preset.description}
+                  </p>
+                )}
+                
+                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                  <div>
+                    <span className="font-medium">Type:</span> {preset.approvalType}
+                  </div>
+                  <div>
+                    <span className="font-medium">Sequence:</span> {preset.useSequence ? "Sequential" : "Parallel"}
+                  </div>
+                  {preset.percentageThreshold && (
+                    <div className="col-span-2">
+                      <span className="font-medium">Threshold:</span> {preset.percentageThreshold}%
+                    </div>
+                  )}
+                </div>
+                
+                <Button
+                  onClick={() => handleApplyPreset(preset.id)}
+                  className="w-full"
+                  size="sm"
+                >
+                  Apply This Preset
+                </Button>
+              </div>
+            ))}
+          </div>
+          
+          {presets.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No preset rules available</p>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => {
+          setShowDeleteConfirm(false);
+          setDeleteRuleId(null);
+        }}
+        title="Confirm Delete"
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-muted-foreground">
+            Are you sure you want to delete this approval rule? This action cannot be undone.
+          </div>
+          
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={confirmDeleteRule}
+              variant="destructive"
+              className="flex-1"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Rule
+            </Button>
+            <Button
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setDeleteRuleId(null);
+              }}
+              variant="outline"
+              className="flex-1"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Create/Edit Rule Modal */}
       <Modal
