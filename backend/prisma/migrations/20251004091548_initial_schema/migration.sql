@@ -2,7 +2,7 @@
 CREATE TYPE "Role" AS ENUM ('ADMIN', 'MANAGER', 'EMPLOYEE');
 
 -- CreateEnum
-CREATE TYPE "ExpenseStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+CREATE TYPE "ExpenseStatus" AS ENUM ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED');
 
 -- CreateEnum
 CREATE TYPE "ApprovalType" AS ENUM ('SEQUENTIAL', 'PERCENTAGE', 'SPECIFIC_APPROVER', 'HYBRID');
@@ -79,6 +79,65 @@ CREATE TABLE "approval_rules" (
 );
 
 -- CreateTable
+CREATE TABLE "user_approval_rules" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "ruleName" TEXT NOT NULL,
+    "description" TEXT,
+    "isManagerApprover" BOOLEAN NOT NULL DEFAULT false,
+    "managerId" TEXT,
+    "approvalType" TEXT NOT NULL DEFAULT 'SEQUENTIAL',
+    "useSequence" BOOLEAN NOT NULL DEFAULT true,
+    "percentageThreshold" INTEGER,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "isPreset" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "user_approval_rules_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "user_rule_approvers" (
+    "id" TEXT NOT NULL,
+    "userRuleId" TEXT NOT NULL,
+    "approverId" TEXT NOT NULL,
+    "isRequired" BOOLEAN NOT NULL DEFAULT false,
+    "sequenceOrder" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "user_rule_approvers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "preset_approval_rules" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "isManagerApprover" BOOLEAN NOT NULL DEFAULT false,
+    "approvalType" TEXT NOT NULL DEFAULT 'SEQUENTIAL',
+    "useSequence" BOOLEAN NOT NULL DEFAULT true,
+    "percentageThreshold" INTEGER,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "preset_approval_rules_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "preset_rule_approvers" (
+    "id" TEXT NOT NULL,
+    "presetRuleId" TEXT NOT NULL,
+    "approverRole" TEXT NOT NULL,
+    "isRequired" BOOLEAN NOT NULL DEFAULT false,
+    "sequenceOrder" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "preset_rule_approvers_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "approval_steps" (
     "id" TEXT NOT NULL,
     "stepNumber" INTEGER NOT NULL,
@@ -127,6 +186,21 @@ ALTER TABLE "approval_rules" ADD CONSTRAINT "approval_rules_companyId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "approval_rules" ADD CONSTRAINT "approval_rules_specificApproverId_fkey" FOREIGN KEY ("specificApproverId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_approval_rules" ADD CONSTRAINT "user_approval_rules_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_approval_rules" ADD CONSTRAINT "user_approval_rules_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_rule_approvers" ADD CONSTRAINT "user_rule_approvers_userRuleId_fkey" FOREIGN KEY ("userRuleId") REFERENCES "user_approval_rules"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "user_rule_approvers" ADD CONSTRAINT "user_rule_approvers_approverId_fkey" FOREIGN KEY ("approverId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "preset_rule_approvers" ADD CONSTRAINT "preset_rule_approvers_presetRuleId_fkey" FOREIGN KEY ("presetRuleId") REFERENCES "preset_approval_rules"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "approval_steps" ADD CONSTRAINT "approval_steps_approvalRuleId_fkey" FOREIGN KEY ("approvalRuleId") REFERENCES "approval_rules"("id") ON DELETE CASCADE ON UPDATE CASCADE;

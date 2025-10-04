@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Modal } from "@/components/ui/modal";
 import {
   Search,
@@ -40,6 +41,8 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  Upload,
+  Receipt,
 } from "lucide-react";
 import { expenseAPI } from "@/services/api";
 
@@ -249,9 +252,9 @@ export function ExpenseHistory() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Expense History</h1>
+          <h1 className="text-3xl font-bold">Expense Management</h1>
           <p className="text-muted-foreground">
-            View and manage your expense submissions
+            Submit and manage your expense reports
           </p>
         </div>
         <div className="flex gap-2">
@@ -268,236 +271,281 @@ export function ExpenseHistory() {
             )}
             Export CSV
           </Button>
-          <Button
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={() => navigate("/employee/submit")}
-          >
-            <Plus className="h-4 w-4" />
-            Add Expense
-          </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Submitted
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalAmount.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              {filteredExpenses.length} expenses
-            </p>
-          </CardContent>
-        </Card>
+      {/* Tab-based Interface - Matching Mockup */}
+      <Tabs defaultValue="upload" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="upload" className="flex items-center gap-2">
+            <Upload className="h-4 w-4" />
+            Upload
+          </TabsTrigger>
+          <TabsTrigger value="new" className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            New
+          </TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              ${approvedAmount.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {filteredExpenses.filter((e) => e.status === "approved").length}{" "}
-              expenses
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              $
-              {filteredExpenses
-                .filter((e) => mapExpenseStatus(e.status) === "submitted")
-                .reduce((sum, e) => sum + parseFloat(e.amount), 0)
-                .toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {
-                filteredExpenses.filter(
-                  (e) => mapExpenseStatus(e.status) === "submitted"
-                ).length
-              }{" "}
-              expenses
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 md:flex-row">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search expenses..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+        <TabsContent value="upload" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Receipt Upload</CardTitle>
+              <CardDescription>
+                Upload a receipt to automatically create an expense
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg font-medium mb-2">Upload Receipt</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Drag and drop your receipt here, or click to browse
+                </p>
+                <Button onClick={() => navigate("/employee/submit")}>
+                  Choose File
+                </Button>
               </div>
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_FILTERS.map((filter) => (
-                  <SelectItem key={filter.value} value={filter.value}>
-                    {filter.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue placeholder="Filter by category" />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORY_FILTERS.map((filter) => (
-                  <SelectItem key={filter.value} value={filter.value}>
-                    {filter.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="new" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Submitted
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${totalAmount.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {filteredExpenses.length} expenses
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  ${approvedAmount.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {
+                    filteredExpenses.filter((e) => e.status === "approved")
+                      .length
+                  }{" "}
+                  expenses
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  $
+                  {filteredExpenses
+                    .filter((e) => mapExpenseStatus(e.status) === "submitted")
+                    .reduce((sum, e) => sum + parseFloat(e.amount), 0)
+                    .toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {
+                    filteredExpenses.filter(
+                      (e) => mapExpenseStatus(e.status) === "submitted"
+                    ).length
+                  }{" "}
+                  expenses
+                </p>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Error Display */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-red-800">
-              <XCircle className="h-4 w-4" />
-              <p>{error}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col gap-4 md:flex-row">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search expenses..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_FILTERS.map((filter) => (
+                      <SelectItem key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={categoryFilter}
+                  onValueChange={setCategoryFilter}
+                >
+                  <SelectTrigger className="w-full md:w-48">
+                    <SelectValue placeholder="Filter by category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_FILTERS.map((filter) => (
+                      <SelectItem key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Expenses Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Expenses ({filteredExpenses.length})</CardTitle>
-          <CardDescription>Your expense submission history</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Paid By</TableHead>
-                <TableHead>Remarks</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
+          {/* Error Display */}
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 text-red-800">
+                  <XCircle className="h-4 w-4" />
+                  <p>{error}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading expenses...
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : filteredExpenses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    <div className="flex flex-col items-center gap-2">
-                      <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
-                      <p className="text-muted-foreground">No expenses found</p>
-                      <p className="text-sm text-muted-foreground">
-                        {searchTerm ||
-                        statusFilter !== "all" ||
-                        categoryFilter !== "all"
-                          ? "Try adjusting your filters"
-                          : "Start by submitting your first expense"}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredExpenses.map((expense) => (
-                  <TableRow
-                    key={expense.id}
-                    onClick={() => handleViewExpense(expense)}
-                    className="cursor-pointer hover:bg-muted/50"
-                  >
-                    {/* Employee */}
-                    <TableCell className="font-medium text-sm">
-                      {expense.employee
-                        ? `${expense.employee.firstName} ${expense.employee.lastName}`
-                        : "Unknown"}
-                    </TableCell>
-
-                    {/* Description */}
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{expense.description}</p>
-                      </div>
-                    </TableCell>
-
-                    {/* Date */}
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(expense.expenseDate).toLocaleDateString(
-                        "en-GB",
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        }
-                      )}
-                    </TableCell>
-
-                    {/* Category */}
-                    <TableCell className="text-sm">
-                      {expense.category}
-                    </TableCell>
-
-                    {/* Paid By */}
-                    <TableCell className="text-sm">Self</TableCell>
-
-                    {/* Remarks */}
-                    <TableCell className="text-sm text-muted-foreground">
-                      —
-                    </TableCell>
-
-                    {/* Amount */}
-                    <TableCell className="font-semibold">
-                      {parseFloat(expense.amount).toLocaleString(undefined, {
-                        style: "currency",
-                        currency: expense.currency || "USD",
-                      })}
-                    </TableCell>
-
-                    {/* Status */}
-                    <TableCell>{getStatusBadge(expense.status)}</TableCell>
+          {/* Expenses Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Expenses ({filteredExpenses.length})</CardTitle>
+              <CardDescription>Your expense submission history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Paid By</TableHead>
+                    <TableHead>Remarks</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading expenses...
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredExpenses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2">
+                          <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
+                          <p className="text-muted-foreground">
+                            No expenses found
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {searchTerm ||
+                            statusFilter !== "all" ||
+                            categoryFilter !== "all"
+                              ? "Try adjusting your filters"
+                              : "Start by submitting your first expense"}
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredExpenses.map((expense) => (
+                      <TableRow
+                        key={expense.id}
+                        onClick={() => handleViewExpense(expense)}
+                        className="cursor-pointer hover:bg-muted/50"
+                      >
+                        {/* Employee */}
+                        <TableCell className="font-medium text-sm">
+                          {expense.employee
+                            ? `${expense.employee.firstName} ${expense.employee.lastName}`
+                            : "Unknown"}
+                        </TableCell>
+
+                        {/* Description */}
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{expense.description}</p>
+                          </div>
+                        </TableCell>
+
+                        {/* Date */}
+                        <TableCell className="text-sm text-muted-foreground">
+                          {new Date(expense.expenseDate).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            }
+                          )}
+                        </TableCell>
+
+                        {/* Category */}
+                        <TableCell className="text-sm">
+                          {expense.category}
+                        </TableCell>
+
+                        {/* Paid By */}
+                        <TableCell className="text-sm">Self</TableCell>
+
+                        {/* Remarks */}
+                        <TableCell className="text-sm text-muted-foreground">
+                          —
+                        </TableCell>
+
+                        {/* Amount */}
+                        <TableCell className="font-semibold">
+                          {parseFloat(expense.amount).toLocaleString(
+                            undefined,
+                            {
+                              style: "currency",
+                              currency: expense.currency || "USD",
+                            }
+                          )}
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell>{getStatusBadge(expense.status)}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Expense Detail Modal */}
       <Modal

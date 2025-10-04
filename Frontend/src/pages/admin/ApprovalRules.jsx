@@ -20,64 +20,60 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Modal } from "@/components/ui/modal";
-import { Stepper } from "@/components/ui/stepper";
-import { Plus, Trash2, Edit, Save, X, Loader2 } from "lucide-react";
-import { approvalRulesAPI, userAPI } from "@/services/api";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  Save,
+  X,
+  Loader2,
+  Users,
+  Settings,
+} from "lucide-react";
+import { userApprovalRulesAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
-
-const APPROVAL_TYPES = [
-  { value: "SEQUENTIAL", label: "Sequential Approval" },
-  { value: "PERCENTAGE", label: "Percentage-based" },
-  { value: "SPECIFIC_APPROVER", label: "Specific Approver" },
-  { value: "HYBRID", label: "Hybrid (Combination)" },
-];
-
-const APPROVER_ROLES = [
-  { value: "manager", label: "Manager" },
-  { value: "finance", label: "Finance" },
-  { value: "director", label: "Director" },
-  { value: "cfo", label: "CFO" },
-  { value: "ceo", label: "CEO" },
-];
-
-// Remove mock data - will be replaced with real API data
 
 export function ApprovalRules() {
   const { user } = useAuth();
-  const [rules, setRules] = useState([]);
   const [users, setUsers] = useState([]);
+  const [presets, setPresets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showPresetModal, setShowPresetModal] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
   const [newRule, setNewRule] = useState({
-    name: "",
+    userId: "",
+    ruleName: "",
+    description: "",
     isManagerApprover: false,
+    managerId: "",
     approvalType: "SEQUENTIAL",
+    useSequence: true,
     percentageThreshold: null,
-    specificApproverId: null,
-    approvers: [], // Array of approver IDs for multiple approvers
+    approvers: [],
   });
 
-  // Fetch approval rules and users
+  // Fetch users and preset rules
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [rulesResponse, usersResponse] = await Promise.all([
-          approvalRulesAPI.getRules(),
-          userAPI.getUsers({ role: "manager" }),
+        const [usersResponse, presetsResponse] = await Promise.all([
+          userApprovalRulesAPI.getUsersWithApprovalRules(),
+          userApprovalRulesAPI.getPresetRules(),
         ]);
-
-        if (rulesResponse.success) {
-          setRules(rulesResponse.data.rules || []);
-        }
 
         if (usersResponse.success) {
           setUsers(usersResponse.data.users || []);
         }
+
+        if (presetsResponse.success) {
+          setPresets(presetsResponse.data.presets || []);
+        }
       } catch (error) {
-        console.error("Failed to fetch approval rules:", error);
+        console.error("Failed to fetch data:", error);
       } finally {
         setIsLoading(false);
       }
@@ -91,137 +87,68 @@ export function ApprovalRules() {
   const handleCreateRule = async () => {
     try {
       // Validate required fields
-      if (!newRule.name || newRule.name.trim() === "") {
-        alert("Please enter a rule name.");
-        return;
-      }
-
-      // Validate that approvers are selected for applicable rule types
       if (
-        (newRule.approvalType === "SEQUENTIAL" ||
-          newRule.approvalType === "PERCENTAGE" ||
-          newRule.approvalType === "HYBRID") &&
+        !selectedUser ||
+        !newRule.ruleName ||
         newRule.approvers.length === 0
       ) {
-        alert("Please select at least one approver for this rule type.");
-        return;
-      }
-
-      // Validate percentage threshold for percentage and hybrid types
-      if (
-        (newRule.approvalType === "PERCENTAGE" ||
-          newRule.approvalType === "HYBRID") &&
-        (!newRule.percentageThreshold ||
-          newRule.percentageThreshold < 1 ||
-          newRule.percentageThreshold > 100)
-      ) {
         alert(
-          "Please enter a valid percentage threshold (1-100) for this rule type."
+          "Please fill in all required fields and select at least one approver."
         );
         return;
       }
 
-      // Validate specific approver for specific_approver type
-      if (
-        newRule.approvalType === "SPECIFIC_APPROVER" &&
-        !newRule.specificApproverId
-      ) {
-        alert("Please select a specific approver for this rule type.");
-        return;
-      }
-
-      // Prepare rule data for backend (exclude approvers array)
-      const ruleData = {
-        name: newRule.name.trim(),
-        isManagerApprover: newRule.isManagerApprover,
-        approvalType: newRule.approvalType,
-        percentageThreshold: newRule.percentageThreshold || null,
-        specificApproverId: newRule.specificApproverId || null,
-      };
-
-      const response = await approvalRulesAPI.createRule(ruleData);
+      const response = await userApprovalRulesAPI.createUserApprovalRule({
+        ...newRule,
+        userId: selectedUser.id,
+      });
       if (response.success) {
-        // If we have approvers, create approval steps
-        if (newRule.approvers.length > 0) {
-          const ruleId = response.data.rule.id;
-          for (let i = 0; i < newRule.approvers.length; i++) {
-            await approvalRulesAPI.addStep(ruleId, {
-              stepNumber: i + 1,
-              approverRole: "MANAGER",
-              approverId: newRule.approvers[i],
-            });
-          }
-        }
-
-        // Refresh rules list
-        const rulesResponse = await approvalRulesAPI.getRules();
-        if (rulesResponse.success) {
-          setRules(rulesResponse.data.rules || []);
+        // Refresh users list
+        const usersResponse =
+          await userApprovalRulesAPI.getUsersWithApprovalRules();
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users || []);
         }
         setNewRule({
-          name: "",
+          userId: "",
+          ruleName: "",
+          description: "",
           isManagerApprover: false,
+          managerId: "",
           approvalType: "SEQUENTIAL",
+          useSequence: true,
           percentageThreshold: null,
-          specificApproverId: null,
           approvers: [],
         });
         setShowCreateModal(false);
       }
     } catch (error) {
       console.error("Failed to create rule:", error);
-      alert(
-        `Failed to create approval rule: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      alert(`Failed to create approval rule: ${error.message}`);
     }
-  };
-
-  const handleEditRule = (rule) => {
-    setEditingRule(rule);
-    setShowEditModal(true);
   };
 
   const handleUpdateRule = async () => {
     try {
       if (!editingRule) return;
 
-      // Validate required fields
-      if (!editingRule.name || editingRule.name.trim() === "") {
-        alert("Please enter a rule name.");
-        return;
-      }
-
-      // Prepare rule data for backend
-      const ruleData = {
-        name: editingRule.name.trim(),
-        isManagerApprover: editingRule.isManagerApprover,
-        approvalType: editingRule.approvalType,
-        percentageThreshold: editingRule.percentageThreshold || null,
-        specificApproverId: editingRule.specificApproverId || null,
-      };
-
-      const response = await approvalRulesAPI.updateRule(
+      const response = await userApprovalRulesAPI.updateUserApprovalRule(
         editingRule.id,
-        ruleData
+        newRule
       );
       if (response.success) {
-        // Refresh rules list
-        const rulesResponse = await approvalRulesAPI.getRules();
-        if (rulesResponse.success) {
-          setRules(rulesResponse.data.rules || []);
+        // Refresh users list
+        const usersResponse =
+          await userApprovalRulesAPI.getUsersWithApprovalRules();
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users || []);
         }
         setEditingRule(null);
-        setShowEditModal(false);
+        setShowCreateModal(false);
       }
     } catch (error) {
       console.error("Failed to update rule:", error);
-      alert(
-        `Failed to update approval rule: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      alert(`Failed to update approval rule: ${error.message}`);
     }
   };
 
@@ -229,60 +156,47 @@ export function ApprovalRules() {
     if (!confirm("Are you sure you want to delete this approval rule?")) return;
 
     try {
-      const response = await approvalRulesAPI.deleteRule(ruleId);
+      const response = await userApprovalRulesAPI.deleteUserApprovalRule(
+        ruleId
+      );
       if (response.success) {
-        // Refresh rules list
-        const rulesResponse = await approvalRulesAPI.getRules();
-        if (rulesResponse.success) {
-          setRules(rulesResponse.data.rules || []);
+        // Refresh users list
+        const usersResponse =
+          await userApprovalRulesAPI.getUsersWithApprovalRules();
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users || []);
         }
       }
     } catch (error) {
       console.error("Failed to delete rule:", error);
-      alert(
-        `Failed to delete approval rule: ${
-          error.response?.data?.message || error.message
-        }`
-      );
+      alert(`Failed to delete approval rule: ${error.message}`);
     }
   };
 
-  const toggleRuleStatus = async (ruleId) => {
+  const handleApplyPreset = async (presetId) => {
     try {
-      const rule = rules.find((r) => r.id === ruleId);
-      if (!rule) return;
+      if (!selectedUser) {
+        alert("Please select a user first.");
+        return;
+      }
 
-      const response = await approvalRulesAPI.updateRule(ruleId, {
-        ...rule,
-        isActive: !rule.isActive,
-      });
-
+      const response = await userApprovalRulesAPI.applyPresetRule(
+        selectedUser.id,
+        presetId
+      );
       if (response.success) {
-        // Refresh rules list
-        const rulesResponse = await approvalRulesAPI.getRules();
-        if (rulesResponse.success) {
-          setRules(rulesResponse.data.rules || []);
+        // Refresh users list
+        const usersResponse =
+          await userApprovalRulesAPI.getUsersWithApprovalRules();
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users || []);
         }
+        setShowPresetModal(false);
       }
     } catch (error) {
-      console.error("Failed to update rule status:", error);
-      alert("Failed to update rule status. Please try again.");
+      console.error("Failed to apply preset:", error);
+      alert(`Failed to apply preset rule: ${error.message}`);
     }
-  };
-
-  const getApprovalTypeBadge = (type) => {
-    const typeConfig = APPROVAL_TYPES.find((t) => t.value === type);
-    return <Badge variant="outline">{typeConfig?.label || type}</Badge>;
-  };
-
-  const getStatusBadge = (isActive) => {
-    return isActive ? (
-      <Badge variant="default" className="bg-green-100 text-green-800">
-        Active
-      </Badge>
-    ) : (
-      <Badge variant="secondary">Inactive</Badge>
-    );
   };
 
   if (isLoading) {
@@ -300,500 +214,561 @@ export function ApprovalRules() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Approval Rules</h1>
+          <h1 className="text-3xl font-bold">Admin view (Approval rules)</h1>
           <p className="text-muted-foreground">
-            Configure expense approval workflows and rules
+            Configure user-specific approval workflows and rules
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Create Rule
-        </Button>
       </div>
 
-      {/* Rules List */}
-      <div className="space-y-4">
-        {rules && rules.length > 0 ? (
-          rules.map((rule) => (
-            <Card key={rule.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      {rule.name}
-                      {getStatusBadge(rule.isActive)}
-                    </CardTitle>
-                    <CardDescription>
-                      {rule.isManagerApprover &&
-                        "Manager approval required first • "}
-                      {getApprovalTypeBadge(rule.approvalType || "sequential")}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={rule.isActive}
-                      onCheckedChange={() => toggleRuleStatus(rule.id)}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditRule(rule)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteRule(rule.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Rule Configuration */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Manager Approver
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        {rule.isManagerApprover
-                          ? "Yes - Manager must approve first"
-                          : "No - Skip manager approval"}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Approval Type
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        {APPROVAL_TYPES.find(
-                          (t) => t.value === (rule.approvalType || "SEQUENTIAL")
-                        )?.label || "Sequential Approval"}
-                      </p>
-                    </div>
-                  </div>
+      {/* Tab-based Interface - Matching Mockup */}
+      <Tabs defaultValue="users" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            User Rules
+          </TabsTrigger>
+          <TabsTrigger value="presets" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Preset Rules
+          </TabsTrigger>
+        </TabsList>
 
-                  {/* Conditional Rules */}
-                  {(rule.approvalType === "PERCENTAGE" ||
-                    rule.approvalType === "HYBRID") &&
-                    rule.percentageThreshold && (
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Percentage Threshold
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                          {rule.percentageThreshold}% of approvers must approve
-                        </p>
-                      </div>
-                    )}
-
-                  {(rule.approvalType === "SPECIFIC_APPROVER" ||
-                    rule.approvalType === "HYBRID") &&
-                    rule.specificApproverId && (
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Specific Approver
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                          {
-                            APPROVER_ROLES.find(
-                              (r) => r.value === rule.specificApproverId
-                            )?.label
-                          }{" "}
-                          approval auto-approves
-                        </p>
-                      </div>
-                    )}
-
-                  {rule.approvalType === "HYBRID" && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Hybrid Rules
-                      </Label>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {rule.percentageThreshold && (
-                          <p>
-                            • {rule.percentageThreshold}% of approvers must
-                            approve
-                          </p>
-                        )}
-                        {rule.specificApproverId && (
-                          <p>
-                            •{" "}
-                            {
-                              APPROVER_ROLES.find(
-                                (r) => r.value === rule.specificApproverId
-                              )?.label
-                            }{" "}
-                            approval auto-approves
-                          </p>
-                        )}
-                        <p>• Expense approved if EITHER condition is met</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Approval Steps */}
-                  {rule.steps && rule.steps.length > 0 && (
-                    <div>
-                      <Label className="text-sm font-medium">
-                        Approval Steps
-                      </Label>
-                      <div className="mt-2">
-                        <Stepper
-                          steps={rule.steps.map((step) => ({
-                            id: step.id,
-                            title: step.approverName,
-                            description: `Step ${step.stepNumber}`,
-                            status: "completed",
-                          }))}
-                          currentStep={rule.steps.length - 1}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
+        <TabsContent value="users" className="space-y-6">
+          {/* User Selection */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-8 text-muted-foreground">
-                <p>No approval rules found</p>
-                <p className="text-sm">
-                  Create your first approval rule to get started
-                </p>
+            <CardHeader>
+              <CardTitle>Select User</CardTitle>
+              <CardDescription>
+                Choose a user to configure their approval rules
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="user-select">User</Label>
+                  <Select
+                    value={selectedUser?.id || ""}
+                    onValueChange={(userId) => {
+                      const user = users.find((u) => u.id === userId);
+                      setSelectedUser(user);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a user to configure rules" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.firstName} {user.lastName} ({user.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedUser && (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => {
+                        setNewRule({
+                          ...newRule,
+                          userId: selectedUser.id,
+                          managerId: selectedUser.managerId || "",
+                        });
+                        setShowCreateModal(true);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Create Custom Rule
+                    </Button>
+                    <Button
+                      onClick={() => setShowPresetModal(true)}
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Apply Preset
+                    </Button>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
 
-      {/* Create Rule Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Create Approval Rule"
-      >
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleCreateRule();
-          }}
-          className="space-y-4"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="rule-name">Rule Name</Label>
-            <Input
-              id="rule-name"
-              placeholder="e.g., Standard Approval Flow"
-              value={newRule.name}
-              onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
-              required
-            />
-          </div>
+          {/* User's Current Rules */}
+          {selectedUser && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Approval Rules for {selectedUser.firstName}{" "}
+                  {selectedUser.lastName}
+                </CardTitle>
+                <CardDescription>
+                  Current approval workflow configuration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {selectedUser.userApprovalRules &&
+                selectedUser.userApprovalRules.length > 0 ? (
+                  <div className="space-y-4">
+                    {selectedUser.userApprovalRules.map((rule) => (
+                      <div key={rule.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="font-semibold">{rule.ruleName}</h3>
+                            {rule.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {rule.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingRule(rule);
+                                setNewRule({
+                                  ...rule,
+                                  approvers: rule.approvers || [],
+                                });
+                                setShowCreateModal(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteRule(rule.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="manager-approver"
-              checked={newRule.isManagerApprover}
-              onCheckedChange={(checked) =>
-                setNewRule({ ...newRule, isManagerApprover: checked })
-              }
-            />
-            <Label htmlFor="manager-approver">Manager Approver Required</Label>
-          </div>
+                        {/* Rule Configuration Display */}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Manager
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              {rule.manager
+                                ? `${rule.manager.firstName} ${rule.manager.lastName}`
+                                : "No manager assigned"}
+                            </p>
+                          </div>
+                          <div>
+                            <Label className="text-sm font-medium">
+                              Approval Type
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              {rule.approvalType}{" "}
+                              {rule.useSequence ? "(Sequential)" : "(Parallel)"}
+                            </p>
+                          </div>
+                          {rule.percentageThreshold && (
+                            <div>
+                              <Label className="text-sm font-medium">
+                                Percentage Threshold
+                              </Label>
+                              <p className="text-sm text-muted-foreground">
+                                {rule.percentageThreshold}%
+                              </p>
+                            </div>
+                          )}
+                        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="approval-type">Approval Type</Label>
-            <Select
-              value={newRule.approvalType}
-              onValueChange={(value) =>
-                setNewRule({ ...newRule, approvalType: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select approval type" />
-              </SelectTrigger>
-              <SelectContent>
-                {APPROVAL_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {newRule.approvalType === "PERCENTAGE" && (
-            <div className="space-y-2">
-              <Label htmlFor="percentage">Percentage Threshold</Label>
-              <Input
-                id="percentage"
-                type="number"
-                min="1"
-                max="100"
-                placeholder="60"
-                value={newRule.percentageThreshold || ""}
-                onChange={(e) =>
-                  setNewRule({
-                    ...newRule,
-                    percentageThreshold: parseInt(e.target.value),
-                  })
-                }
-              />
-            </div>
+                        {/* Approvers List */}
+                        {rule.approvers && rule.approvers.length > 0 && (
+                          <div className="mt-4">
+                            <Label className="text-sm font-medium">
+                              Approvers
+                            </Label>
+                            <div className="mt-2 space-y-2">
+                              {rule.approvers.map((approver, index) => (
+                                <div
+                                  key={approver.id}
+                                  className="flex items-center gap-2 p-2 bg-muted rounded"
+                                >
+                                  <span className="text-sm font-medium">
+                                    {index + 1}. {approver.approver.firstName}{" "}
+                                    {approver.approver.lastName}
+                                  </span>
+                                  {approver.isRequired && (
+                                    <Badge
+                                      variant="default"
+                                      className="text-xs"
+                                    >
+                                      Required
+                                    </Badge>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No approval rules configured for this user</p>
+                    <p className="text-sm">
+                      Create a custom rule or apply a preset
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
+        </TabsContent>
 
-          {/* Multiple Approvers Selection */}
-          {(newRule.approvalType === "SEQUENTIAL" ||
-            newRule.approvalType === "PERCENTAGE" ||
-            newRule.approvalType === "HYBRID") && (
-            <div className="space-y-2">
-              <Label htmlFor="approvers">Select Approvers</Label>
-              <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
-                {users.map((user) => (
-                  <div key={user.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`approver-${user.id}`}
-                      checked={newRule.approvers.includes(user.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setNewRule({
-                            ...newRule,
-                            approvers: [...newRule.approvers, user.id],
-                          });
-                        } else {
-                          setNewRule({
-                            ...newRule,
-                            approvers: newRule.approvers.filter(
-                              (id) => id !== user.id
-                            ),
-                          });
-                        }
-                      }}
-                    />
-                    <label htmlFor={`approver-${user.id}`} className="text-sm">
-                      {user.firstName} {user.lastName} ({user.role})
-                    </label>
+        <TabsContent value="presets" className="space-y-6">
+          {/* Preset Rules */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Preset Approval Rules</CardTitle>
+              <CardDescription>
+                Pre-configured approval rule templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2">
+                {presets.map((preset) => (
+                  <div key={preset.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold">{preset.name}</h3>
+                      <Badge variant="outline">Preset</Badge>
+                    </div>
+                    {preset.description && (
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {preset.description}
+                      </p>
+                    )}
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="font-medium">Type:</span>{" "}
+                        {preset.approvalType}
+                      </div>
+                      <div>
+                        <span className="font-medium">Sequence:</span>{" "}
+                        {preset.useSequence ? "Sequential" : "Parallel"}
+                      </div>
+                      {preset.percentageThreshold && (
+                        <div>
+                          <span className="font-medium">Threshold:</span>{" "}
+                          {preset.percentageThreshold}%
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleApplyPreset(preset.id)}
+                        className="w-full"
+                      >
+                        Apply to User
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Select the managers who will be part of the approval process
-              </p>
-            </div>
-          )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
-          {newRule.approvalType === "SPECIFIC_APPROVER" && (
-            <div className="space-y-2">
-              <Label htmlFor="specific-approver">Specific Approver</Label>
-              <Select
-                value={newRule.specificApproverId || ""}
-                onValueChange={(value) =>
-                  setNewRule({ ...newRule, specificApproverId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select approver" />
-                </SelectTrigger>
-                <SelectContent>
-                  {APPROVER_ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {newRule.approvalType === "HYBRID" && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="hybrid-percentage">
-                  Percentage Threshold (Optional)
-                </Label>
-                <Input
-                  id="hybrid-percentage"
-                  type="number"
-                  min="1"
-                  max="100"
-                  placeholder="60"
-                  value={newRule.percentageThreshold || ""}
-                  onChange={(e) =>
-                    setNewRule({
-                      ...newRule,
-                      percentageThreshold: parseInt(e.target.value),
-                    })
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="hybrid-approver">
-                  Specific Approver (Optional)
-                </Label>
-                <Select
-                  value={newRule.specificApproverId || ""}
-                  onValueChange={(value) =>
-                    setNewRule({ ...newRule, specificApproverId: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select approver" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {APPROVER_ROLES.map((role) => (
-                      <SelectItem key={role.value} value={role.value}>
-                        {role.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2 pt-4">
-            <Button type="submit" className="flex-1">
-              <Save className="h-4 w-4 mr-2" />
-              Create Rule
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowCreateModal(false)}
-              className="flex-1"
-            >
-              <X className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Edit Rule Modal */}
+      {/* Create/Edit Rule Modal */}
       <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title="Edit Approval Rule"
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title={editingRule ? "Edit Approval Rule" : "Create Approval Rule"}
       >
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleUpdateRule();
+            if (editingRule) {
+              handleUpdateRule();
+            } else {
+              handleCreateRule();
+            }
           }}
           className="space-y-4"
         >
+          {/* User Field - Matching Mockup */}
           <div className="space-y-2">
-            <Label htmlFor="edit-rule-name">Rule Name</Label>
+            <Label htmlFor="user-field">User</Label>
             <Input
-              id="edit-rule-name"
-              placeholder="e.g., Standard Approval Flow"
-              value={editingRule?.name || ""}
+              id="user-field"
+              value={
+                selectedUser
+                  ? `${selectedUser.firstName} ${selectedUser.lastName}`
+                  : ""
+              }
+              disabled
+              className="bg-muted"
+            />
+            <p className="text-xs text-muted-foreground">
+              Dynamic dropdown. Initially the manager set on user record should
+              be set, admin can change manager for approval if required.
+            </p>
+          </div>
+
+          {/* Rule Name Field - Required */}
+          <div className="space-y-2">
+            <Label htmlFor="rule-name">Rule Name *</Label>
+            <Input
+              id="rule-name"
+              placeholder="Enter rule name"
+              value={newRule.ruleName}
               onChange={(e) =>
-                setEditingRule({ ...editingRule, name: e.target.value })
+                setNewRule({ ...newRule, ruleName: e.target.value })
               }
               required
             />
+            <p className="text-xs text-muted-foreground">
+              A descriptive name for this approval rule
+            </p>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="edit-manager-approver"
-              checked={editingRule?.isManagerApprover || false}
-              onCheckedChange={(checked) =>
-                setEditingRule({ ...editingRule, isManagerApprover: checked })
+          {/* Description Field - Matching Mockup */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Description about rules</Label>
+            <Textarea
+              id="description"
+              placeholder="Approval rule for miscellaneous expenses"
+              value={newRule.description}
+              onChange={(e) =>
+                setNewRule({ ...newRule, description: e.target.value })
               }
             />
-            <Label htmlFor="edit-manager-approver">
-              Manager approval required first
-            </Label>
           </div>
 
+          {/* Manager Field - Matching Mockup */}
           <div className="space-y-2">
-            <Label htmlFor="edit-approval-type">Approval Type</Label>
+            <Label htmlFor="manager">Manager</Label>
             <Select
-              value={editingRule?.approvalType || "SEQUENTIAL"}
+              value={newRule.managerId}
               onValueChange={(value) =>
-                setEditingRule({ ...editingRule, approvalType: value })
+                setNewRule({ ...newRule, managerId: value })
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select approval type" />
+                <SelectValue placeholder="Select manager" />
               </SelectTrigger>
               <SelectContent>
-                {APPROVAL_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
+                {users
+                  .filter((u) => u.role === "MANAGER" || u.role === "ADMIN")
+                  .map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
 
-          {editingRule?.approvalType === "PERCENTAGE" && (
-            <div className="space-y-2">
-              <Label htmlFor="edit-percentage">Percentage Threshold</Label>
-              <Input
-                id="edit-percentage"
-                type="number"
-                min="1"
-                max="100"
-                placeholder="60"
-                value={editingRule?.percentageThreshold || ""}
-                onChange={(e) =>
-                  setEditingRule({
-                    ...editingRule,
-                    percentageThreshold: parseInt(e.target.value),
-                  })
-                }
-              />
-            </div>
-          )}
+          {/* Approvers Section - Matching Mockup */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-medium mb-3">Approvers</h3>
 
-          {editingRule?.approvalType === "SPECIFIC_APPROVER" && (
-            <div className="space-y-2">
-              <Label htmlFor="edit-specific-approver">Specific Approver</Label>
-              <Select
-                value={editingRule?.specificApproverId || ""}
-                onValueChange={(value) =>
-                  setEditingRule({ ...editingRule, specificApproverId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select specific approver" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName} ({user.role})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Is Manager Approver Checkbox */}
+              <div className="flex items-center space-x-2 mb-4">
+                <Switch
+                  id="is-manager-approver"
+                  checked={newRule.isManagerApprover}
+                  onCheckedChange={(checked) =>
+                    setNewRule({ ...newRule, isManagerApprover: checked })
+                  }
+                />
+                <Label htmlFor="is-manager-approver">
+                  Is manager an approver?
+                </Label>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">
+                If this field is checked then by default the approve request
+                would go to his/her manager first, before going to other
+                approvers.
+              </p>
+
+              {/* Approvers List */}
+              <div className="space-y-2">
+                <Label>Select Approvers</Label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border rounded-md p-2">
+                  {users
+                    .filter((u) => u.role === "MANAGER" || u.role === "ADMIN")
+                    .map((user, index) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center space-x-2"
+                      >
+                        <input
+                          type="checkbox"
+                          id={`approver-${user.id}`}
+                          checked={newRule.approvers.some(
+                            (a) => a.approverId === user.id
+                          )}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewRule({
+                                ...newRule,
+                                approvers: [
+                                  ...newRule.approvers,
+                                  {
+                                    approverId: user.id,
+                                    isRequired: false,
+                                    sequenceOrder: newRule.approvers.length + 1,
+                                  },
+                                ],
+                              });
+                            } else {
+                              setNewRule({
+                                ...newRule,
+                                approvers: newRule.approvers.filter(
+                                  (a) => a.approverId !== user.id
+                                ),
+                              });
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`approver-${user.id}`}
+                          className="text-sm"
+                        >
+                          {index + 1} {user.firstName} {user.lastName}
+                        </label>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Required Checkboxes */}
+              {newRule.approvers.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Required</Label>
+                  <div className="space-y-2">
+                    {newRule.approvers.map((approver, index) => {
+                      const user = users.find(
+                        (u) => u.id === approver.approverId
+                      );
+                      return (
+                        <div
+                          key={approver.approverId}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="checkbox"
+                            id={`required-${approver.approverId}`}
+                            checked={approver.isRequired}
+                            onChange={(e) => {
+                              const updatedApprovers = [...newRule.approvers];
+                              updatedApprovers[index].isRequired =
+                                e.target.checked;
+                              setNewRule({
+                                ...newRule,
+                                approvers: updatedApprovers,
+                              });
+                            }}
+                          />
+                          <label
+                            htmlFor={`required-${approver.approverId}`}
+                            className="text-sm"
+                          >
+                            {user?.firstName} {user?.lastName}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    If this field is ticked, then anyhow approval of this
+                    approver is required in any approval combination scenarios.
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Approvers Sequence - Matching Mockup */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="approvers-sequence"
+                  checked={newRule.useSequence}
+                  onCheckedChange={(checked) =>
+                    setNewRule({ ...newRule, useSequence: checked })
+                  }
+                />
+                <Label htmlFor="approvers-sequence">Approvers Sequence</Label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                If this field is ticked true then the above mentioned sequence
+                of approvers matters, that is first the request goes to John, if
+                he approves/rejects then only request goes to mitchell and so
+                on. If the required approver rejects the request, then expense
+                request is auto-rejected. If not ticked then send approver
+                request to all approvers at the same time.
+              </p>
+            </div>
+
+            {/* Minimum Approval Percentage - Matching Mockup */}
+            {!newRule.useSequence && (
+              <div className="space-y-2">
+                <Label htmlFor="percentage">Minimum Approval percentage</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="percentage"
+                    type="number"
+                    min="1"
+                    max="100"
+                    placeholder="60"
+                    value={newRule.percentageThreshold || ""}
+                    onChange={(e) =>
+                      setNewRule({
+                        ...newRule,
+                        percentageThreshold: parseInt(e.target.value) || null,
+                      })
+                    }
+                    className="w-20"
+                  />
+                  <span>%</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Specify the number of percentage approvers required in order
+                  to get the request approved.
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="flex gap-2 pt-4">
             <Button type="submit" className="flex-1">
               <Save className="h-4 w-4 mr-2" />
-              Update Rule
+              {editingRule ? "Update Rule" : "Create Rule"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={() => setShowEditModal(false)}
+              onClick={() => {
+                setShowCreateModal(false);
+                setEditingRule(null);
+                setNewRule({
+                  userId: "",
+                  ruleName: "",
+                  description: "",
+                  isManagerApprover: false,
+                  managerId: "",
+                  approvalType: "SEQUENTIAL",
+                  useSequence: true,
+                  percentageThreshold: null,
+                  approvers: [],
+                });
+              }}
               className="flex-1"
             >
               <X className="h-4 w-4 mr-2" />

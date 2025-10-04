@@ -44,7 +44,7 @@ class ApiService {
     }
 
     if (Array.isArray(obj)) {
-      return obj.map(item => this.cleanData(item));
+      return obj.map((item) => this.cleanData(item));
     }
 
     const cleaned = {};
@@ -52,11 +52,14 @@ class ApiService {
       if (obj.hasOwnProperty(key)) {
         const value = obj[key];
         // Skip DOM elements and React components
-        if (value && typeof value === "object" && 
-            (value.constructor.name === "HTMLInputElement" || 
-             value.constructor.name === "HTMLFormElement" ||
-             value.constructor.name === "FiberNode" ||
-             value.$$typeof)) {
+        if (
+          value &&
+          typeof value === "object" &&
+          (value.constructor.name === "HTMLInputElement" ||
+            value.constructor.name === "HTMLFormElement" ||
+            value.constructor.name === "FiberNode" ||
+            value.$$typeof)
+        ) {
           continue;
         }
         cleaned[key] = this.cleanData(value);
@@ -227,8 +230,8 @@ export const expenseAPI = {
   getExpenses: async (params = {}) => {
     // Filter out undefined, null, and empty string values
     const filteredParams = Object.fromEntries(
-      Object.entries(params).filter(([_, value]) => 
-        value !== undefined && value !== null && value !== ""
+      Object.entries(params).filter(
+        ([_, value]) => value !== undefined && value !== null && value !== ""
       )
     );
     const queryParams = new URLSearchParams(filteredParams);
@@ -264,33 +267,36 @@ export const expenseAPI = {
   exportToExcel: async (filters = {}) => {
     // Filter out undefined, null, and empty string values
     const filteredParams = Object.fromEntries(
-      Object.entries(filters).filter(([_, value]) => 
-        value !== undefined && value !== null && value !== ""
+      Object.entries(filters).filter(
+        ([_, value]) => value !== undefined && value !== null && value !== ""
       )
     );
     const queryParams = new URLSearchParams(filteredParams);
-    
-    const response = await fetch(`${API_BASE_URL}/expenses/export/excel?${queryParams}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-      },
-    });
+
+    const response = await fetch(
+      `${API_BASE_URL}/expenses/export/excel?${queryParams}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+        },
+      }
+    );
 
     if (!response.ok) {
-      throw new Error('Export failed');
+      throw new Error("Export failed");
     }
 
     // Get filename from Content-Disposition header
-    const contentDisposition = response.headers.get('Content-Disposition');
-    const filename = contentDisposition 
-      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-      : 'expenses_export.xlsx';
+    const contentDisposition = response.headers.get("Content-Disposition");
+    const filename = contentDisposition
+      ? contentDisposition.split("filename=")[1].replace(/"/g, "")
+      : "expenses_export.xlsx";
 
     // Create blob and download
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
     link.download = filename;
     document.body.appendChild(link);
@@ -419,6 +425,43 @@ export const companyAPI = {
   // Update company settings
   updateSettings: async (settings) => {
     return apiService.put("/company/settings", settings);
+  },
+};
+
+// User-specific approval rules API
+export const userApprovalRulesAPI = {
+  // Get all users with their approval rules
+  getUsersWithApprovalRules: async () => {
+    return apiService.get("/user-approval-rules/users");
+  },
+
+  // Get preset approval rules
+  getPresetRules: async () => {
+    return apiService.get("/user-approval-rules/presets");
+  },
+
+  // Create user-specific approval rule
+  createUserApprovalRule: async (ruleData) => {
+    return apiService.post("/user-approval-rules", ruleData);
+  },
+
+  // Update user-specific approval rule
+  updateUserApprovalRule: async (ruleId, ruleData) => {
+    return apiService.put(`/user-approval-rules/${ruleId}`, ruleData);
+  },
+
+  // Delete user-specific approval rule
+  deleteUserApprovalRule: async (ruleId) => {
+    return apiService.delete(`/user-approval-rules/${ruleId}`);
+  },
+
+  // Apply preset rule to user
+  applyPresetRule: async (userId, presetId, managerId = null) => {
+    return apiService.post("/user-approval-rules/apply-preset", {
+      userId,
+      presetId,
+      managerId,
+    });
   },
 };
 

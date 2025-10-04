@@ -12,12 +12,12 @@ import userRoutes from "./routes/users.js";
 import expenseRoutes from "./routes/expenses.js";
 import approvalRoutes from "./routes/approvals.js";
 import approvalRulesRoutes from "./routes/approval-rules.js";
+import userApprovalRulesRoutes from "./routes/user-approval-rules.js";
 import currencyRoutes from "./routes/currency.js";
 import ocrRoutes from "./routes/ocr.js";
 import companyRoutes from "./routes/company.js";
 
 const app = express();
-
 
 // Security middleware
 app.use(helmet());
@@ -74,6 +74,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/approvals", approvalRoutes);
 app.use("/api/approval-rules", approvalRulesRoutes);
+app.use("/api/user-approval-rules", userApprovalRulesRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/ocr", ocrRoutes);
 app.use("/api/company", companyRoutes);

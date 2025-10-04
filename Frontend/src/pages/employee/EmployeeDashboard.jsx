@@ -80,6 +80,9 @@ export function EmployeeDashboard() {
     approvedExpenses: 0,
     rejectedExpenses: 0,
     totalAmount: 0,
+    toSubmitAmount: 0,
+    waitingApprovalAmount: 0,
+    approvedAmount: 0,
   });
   const [recentExpenses, setRecentExpenses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,10 +117,26 @@ export function EmployeeDashboard() {
         const rejectedExpenses = expenses.filter(
           (e) => mapExpenseStatus(e.status) === "rejected"
         ).length;
+        const draftExpenses = expenses.filter(
+          (e) => mapExpenseStatus(e.status) === "draft"
+        );
+
         const totalAmount = expenses.reduce(
           (sum, expense) => sum + parseFloat(expense.amount || 0),
           0
         );
+
+        // Calculate amounts by status for the summary bar
+        const toSubmitAmount = draftExpenses.reduce(
+          (sum, expense) => sum + parseFloat(expense.amount || 0),
+          0
+        );
+        const waitingApprovalAmount = expenses
+          .filter((e) => mapExpenseStatus(e.status) === "submitted")
+          .reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
+        const approvedAmount = expenses
+          .filter((e) => mapExpenseStatus(e.status) === "approved")
+          .reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
 
         setStats({
           totalExpenses,
@@ -125,6 +144,9 @@ export function EmployeeDashboard() {
           approvedExpenses,
           rejectedExpenses,
           totalAmount,
+          toSubmitAmount,
+          waitingApprovalAmount,
+          approvedAmount,
         });
 
         setRecentExpenses(expenses);
@@ -137,6 +159,9 @@ export function EmployeeDashboard() {
           approvedExpenses: 0,
           rejectedExpenses: 0,
           totalAmount: 0,
+          toSubmitAmount: 0,
+          waitingApprovalAmount: 0,
+          approvedAmount: 0,
         });
         setRecentExpenses([]);
       } finally {
@@ -174,6 +199,32 @@ export function EmployeeDashboard() {
           </Button>
         </Link>
       </div>
+
+      {/* Status Summary Bar - Matching Mockup */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span className="text-lg font-semibold text-orange-700">
+                {stats.toSubmitAmount.toFixed(0)} Rs To Submit
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span className="text-lg font-semibold text-yellow-700">
+                {stats.waitingApprovalAmount.toFixed(0)} Rs Waiting approval
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="text-lg font-semibold text-green-700">
+                {stats.approvedAmount.toFixed(0)} Rs Approved
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

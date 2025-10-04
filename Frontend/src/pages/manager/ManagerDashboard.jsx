@@ -115,7 +115,7 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {mockStats.pendingApprovals}
+              {stats.pendingApprovals}
             </div>
             <p className="text-xs text-muted-foreground">
               Awaiting your review
@@ -129,7 +129,7 @@ export function ManagerDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockStats.teamMembers}</div>
+            <div className="text-2xl font-bold">{stats.teamMembers}</div>
             <p className="text-xs text-muted-foreground">
               Under your management
             </p>
@@ -145,7 +145,7 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {mockStats.totalApproved}
+              {stats.totalApproved}
             </div>
             <p className="text-xs text-muted-foreground">Expenses approved</p>
           </CardContent>
@@ -158,10 +158,10 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${mockStats.usedBudget.toLocaleString()}
+              ${stats.usedBudget.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              of ${mockStats.monthlyBudget.toLocaleString()} used
+              of ${stats.monthlyBudget.toLocaleString()} used
             </p>
             <div className="mt-2 w-full bg-muted rounded-full h-2">
               <div
@@ -173,56 +173,94 @@ export function ManagerDashboard() {
         </Card>
       </div>
 
-      {/* Pending Approvals */}
+      {/* Pending Approvals - Matching Mockup Table Format */}
       <Card>
         <CardHeader>
-          <CardTitle>Pending Approvals</CardTitle>
+          <CardTitle>Approvals to review</CardTitle>
           <CardDescription>Expenses waiting for your approval</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {pendingApprovals.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No pending approvals</p>
-                <p className="text-sm">All caught up!</p>
-              </div>
-            ) : (
-              pendingApprovals.map((expense) => (
-                <div
-                  key={expense.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <p className="font-medium">{expense.description}</p>
-                      <p className="text-sm text-muted-foreground">
+          {pendingApprovals.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No pending approvals</p>
+              <p className="text-sm">All caught up!</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium">
+                      Approval Subject
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium">
+                      Request Owner
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium">
+                      Category
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium">
+                      Request Status
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium">
+                      Total amount (in company's currency)
+                    </th>
+                    <th className="text-center py-3 px-4 font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingApprovals.map((expense) => (
+                    <tr key={expense.id} className="border-b hover:bg-muted/50">
+                      <td className="py-3 px-4">
+                        <div className="font-medium">{expense.description}</div>
+                      </td>
+                      <td className="py-3 px-4">
                         {expense.employee?.firstName}{" "}
-                        {expense.employee?.lastName} • {expense.category} •{" "}
-                        {new Date(expense.expenseDate).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold">
-                      {parseFloat(expense.amount).toLocaleString(undefined, {
-                        style: "currency",
-                        currency: expense.currency || "USD",
-                      })}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline">
-                        Approve
-                      </Button>
-                      <Button size="sm" variant="destructive">
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                        {expense.employee?.lastName}
+                      </td>
+                      <td className="py-3 px-4">{expense.category}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant="secondary">Pending</Badge>
+                      </td>
+                      <td className="py-3 px-4 font-semibold">
+                        {parseFloat(expense.amount).toLocaleString(undefined, {
+                          style: "currency",
+                          currency: expense.currency || "USD",
+                        })}
+                        {expense.amountInCompanyCurrency &&
+                          expense.currency !== "USD" && (
+                            <span className="text-sm text-muted-foreground ml-2">
+                              +{" "}
+                              {parseFloat(
+                                expense.amountInCompanyCurrency
+                              ).toFixed(0)}{" "}
+                              USD
+                            </span>
+                          )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="destructive">
+                            Reject
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
           <div className="mt-4">
             <Link to="/manager/approvals">
               <Button variant="outline" className="w-full">

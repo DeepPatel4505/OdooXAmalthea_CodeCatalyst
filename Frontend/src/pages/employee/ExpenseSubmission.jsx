@@ -49,6 +49,22 @@ const CURRENCIES = [
 
 const COMPANY_CURRENCY = "USD";
 
+// Status mapping from backend to frontend
+const mapExpenseStatus = (status) => {
+  switch (status) {
+    case "DRAFT":
+      return "draft";
+    case "PENDING":
+      return "submitted";
+    case "APPROVED":
+      return "approved";
+    case "REJECTED":
+      return "rejected";
+    default:
+      return status.toLowerCase();
+  }
+};
+
 export function ExpenseSubmission() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -62,6 +78,8 @@ export function ExpenseSubmission() {
   const [convertedAmount, setConvertedAmount] = useState(null);
   const [exchangeRate, setExchangeRate] = useState(null);
   const [isConverting, setIsConverting] = useState(false);
+  const [expenseData, setExpenseData] = useState(null);
+  const [isReadonly, setIsReadonly] = useState(false);
 
   const {
     register,
@@ -95,6 +113,7 @@ export function ExpenseSubmission() {
         const expense = response.data.expense;
 
         // Populate form with expense data
+        setExpenseData(expense);
         reset({
           amount: parseFloat(expense.amount),
           category: expense.category,
@@ -102,6 +121,16 @@ export function ExpenseSubmission() {
           date: new Date(expense.expenseDate).toISOString().split("T")[0],
           currency: expense.currency,
         });
+
+        // Set readonly mode for submitted/approved/rejected expenses
+        const mappedStatus = mapExpenseStatus(expense.status);
+        if (
+          mappedStatus === "submitted" ||
+          mappedStatus === "approved" ||
+          mappedStatus === "rejected"
+        ) {
+          setIsReadonly(true);
+        }
       } catch (error) {
         console.error("Failed to load expense:", error);
         // Navigate back to history if expense not found
@@ -447,6 +476,7 @@ export function ExpenseSubmission() {
                       min: { value: 0.01, message: "Amount must be > 0" },
                     })}
                     className="rounded-l-none"
+                    disabled={isReadonly}
                   />
                 </div>
                 {errors.amount && (
@@ -473,6 +503,7 @@ export function ExpenseSubmission() {
                 <Select
                   value={selectedCurrency}
                   onValueChange={(value) => setValue("currency", value)}
+                  disabled={isReadonly}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
@@ -494,6 +525,7 @@ export function ExpenseSubmission() {
               <Select
                 onValueChange={(value) => setValue("category", value)}
                 value={watch("category")}
+                disabled={isReadonly}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -517,6 +549,7 @@ export function ExpenseSubmission() {
                 {...register("description", {
                   required: "Description is required",
                 })}
+                disabled={isReadonly}
               />
             </div>
 
@@ -527,51 +560,113 @@ export function ExpenseSubmission() {
                 id="date"
                 type="date"
                 {...register("date", { required: "Date is required" })}
+                disabled={isReadonly}
               />
             </div>
 
+            {/* Approver Field - Matching Mockup */}
+            <div className="space-y-2">
+              <Label htmlFor="approver">Approver</Label>
+              <div className="p-3 bg-muted rounded-lg">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Sarah (Manager)
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This expense will be sent to your manager for approval
+                </p>
+              </div>
+            </div>
+
+            {/* Status Field - Matching Mockup */}
+            {isEditMode && (
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">
+                      Approved
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    Time: 12:44 04, Oct, 2025
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Submit Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <div className="flex gap-2">
-                <Button type="submit" disabled={isSubmitting || isConverting}>
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-2">
+            {!isReadonly && (
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <div className="flex gap-2">
+                  <Button type="submit" disabled={isSubmitting || isConverting}>
+                    {isSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {isEditMode ? "Updating..." : "Submitting..."}
+                      </div>
+                    ) : isEditMode ? (
+                      "Update & Submit"
+                    ) : (
+                      "Submit Expense"
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSubmit(handleSaveAsDraft)}
+                    disabled={isSubmitting || isConverting}
+                    className="flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      {isEditMode ? "Updating..." : "Submitting..."}
-                    </div>
-                  ) : isEditMode ? (
-                    "Update & Submit"
-                  ) : (
-                    "Submit Expense"
-                  )}
-                </Button>
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {isEditMode ? "Update as Draft" : "Save as Draft"}
+                  </Button>
+                </div>
 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handleSubmit(handleSaveAsDraft)}
-                  disabled={isSubmitting || isConverting}
-                  className="flex items-center gap-2"
+                  onClick={() => navigate("/employee/expenses")}
+                  disabled={isSubmitting}
+                  className="sm:ml-auto"
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {isEditMode ? "Update as Draft" : "Save as Draft"}
+                  Cancel
                 </Button>
               </div>
+            )}
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/employee/expenses")}
-                disabled={isSubmitting}
-                className="sm:ml-auto"
-              >
-                Cancel
-              </Button>
-            </div>
+            {/* Readonly Mode Message */}
+            {isReadonly && (
+              <div className="pt-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    This expense has been submitted and cannot be edited.
+                    {expenseData && (
+                      <span className="ml-1 font-medium">
+                        Status:{" "}
+                        {mapExpenseStatus(expenseData.status)
+                          .charAt(0)
+                          .toUpperCase() +
+                          mapExpenseStatus(expenseData.status).slice(1)}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/employee/expenses")}
+                  className="mt-4"
+                >
+                  Back to Expenses
+                </Button>
+              </div>
+            )}
           </form>
         </CardContent>
       </Card>

@@ -51,6 +51,11 @@ model User {
   approvalSteps ApprovalStep[]
   approvalRules ApprovalRule[]
   
+  // New user-specific approval rules
+  userApprovalRules UserApprovalRule[] @relation("UserApprovalRules")
+  managedUserRules UserApprovalRule[] @relation("UserManagerRules")
+  userRuleApprovers UserRuleApprover[] @relation("UserRuleApprovers")
+  
   @@map("users")
 }
 
@@ -84,6 +89,7 @@ model Expense {
   @@map("expenses")
 }
 
+// Legacy approval rules - to be deprecated
 model ApprovalRule {
   id                    String   @id @default(uuid())
   name                  String
@@ -104,6 +110,80 @@ model ApprovalRule {
   approvalSteps         ApprovalStep[]
 
   @@map("approval_rules")
+}
+
+// New user-specific approval rules
+model UserApprovalRule {
+  id                    String   @id @default(uuid())
+  userId                String
+  ruleName              String
+  description           String?
+  isManagerApprover     Boolean  @default(false)
+  managerId             String?
+  approvalType          String   @default("SEQUENTIAL")
+  useSequence           Boolean  @default(true)
+  percentageThreshold   Int?
+  isActive              Boolean  @default(true)
+  isPreset              Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  user                  User            @relation("UserApprovalRules", fields: [userId], references: [id], onDelete: Cascade)
+  manager               User?           @relation("UserManagerRules", fields: [managerId], references: [id], onDelete: SetNull)
+  approvers             UserRuleApprover[]
+
+  @@map("user_approval_rules")
+}
+
+// Approvers for user-specific rules
+model UserRuleApprover {
+  id              String   @id @default(uuid())
+  userRuleId      String
+  approverId      String
+  isRequired      Boolean  @default(false)
+  sequenceOrder   Int
+  createdAt       DateTime @default(now())
+
+  // Relations
+  userRule        UserApprovalRule @relation(fields: [userRuleId], references: [id], onDelete: Cascade)
+  approver        User             @relation("UserRuleApprovers", fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@map("user_rule_approvers")
+}
+
+// Preset approval rule templates
+model PresetApprovalRule {
+  id                    String   @id @default(uuid())
+  name                  String
+  description           String?
+  isManagerApprover     Boolean  @default(false)
+  approvalType          String   @default("SEQUENTIAL")
+  useSequence           Boolean  @default(true)
+  percentageThreshold   Int?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  approvers             PresetRuleApprover[]
+
+  @@map("preset_approval_rules")
+}
+
+// Approvers for preset rules
+model PresetRuleApprover {
+  id              String   @id @default(uuid())
+  presetRuleId    String
+  approverRole    String
+  isRequired      Boolean  @default(false)
+  sequenceOrder   Int
+  createdAt       DateTime @default(now())
+
+  // Relations
+  presetRule      PresetApprovalRule @relation(fields: [presetRuleId], references: [id], onDelete: Cascade)
+
+  @@map("preset_rule_approvers")
 }
 
 model ApprovalStep {

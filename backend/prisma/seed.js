@@ -11,6 +11,10 @@ async function main() {
   await prisma.approval.deleteMany();
   await prisma.approvalStep.deleteMany();
   await prisma.approvalRule.deleteMany();
+  await prisma.userRuleApprover.deleteMany();
+  await prisma.userApprovalRule.deleteMany();
+  await prisma.presetRuleApprover.deleteMany();
+  await prisma.presetApprovalRule.deleteMany();
   await prisma.expense.deleteMany();
   await prisma.user.deleteMany();
   await prisma.company.deleteMany();
@@ -300,6 +304,186 @@ async function main() {
     },
   });
 
+  // Create preset approval rules
+  console.log("📋 Creating preset approval rules...");
+
+  const presetStandard = await prisma.presetApprovalRule.create({
+    data: {
+      name: "Standard Approval Process",
+      description: "Standard approval process for most expenses",
+      isManagerApprover: true,
+      approvalType: "SEQUENTIAL",
+      useSequence: true,
+      isActive: true,
+    },
+  });
+
+  const presetHighValue = await prisma.presetApprovalRule.create({
+    data: {
+      name: "High Value Approval Process",
+      description: "Multi-level approval for high-value expenses",
+      isManagerApprover: true,
+      approvalType: "SEQUENTIAL",
+      useSequence: true,
+      percentageThreshold: 1000,
+      isActive: true,
+    },
+  });
+
+  const presetQuick = await prisma.presetApprovalRule.create({
+    data: {
+      name: "Quick Approval Process",
+      description: "Fast approval for low-value expenses",
+      isManagerApprover: true,
+      approvalType: "SEQUENTIAL",
+      useSequence: true,
+      percentageThreshold: 100,
+      isActive: true,
+    },
+  });
+
+  // Create preset rule approvers
+  await prisma.presetRuleApprover.create({
+    data: {
+      presetRuleId: presetStandard.id,
+      approverRole: "MANAGER",
+      isRequired: true,
+      sequenceOrder: 1,
+    },
+  });
+
+  await prisma.presetRuleApprover.create({
+    data: {
+      presetRuleId: presetStandard.id,
+      approverRole: "ADMIN",
+      isRequired: false,
+      sequenceOrder: 2,
+    },
+  });
+
+  await prisma.presetRuleApprover.create({
+    data: {
+      presetRuleId: presetHighValue.id,
+      approverRole: "MANAGER",
+      isRequired: true,
+      sequenceOrder: 1,
+    },
+  });
+
+  await prisma.presetRuleApprover.create({
+    data: {
+      presetRuleId: presetHighValue.id,
+      approverRole: "ADMIN",
+      isRequired: true,
+      sequenceOrder: 2,
+    },
+  });
+
+  await prisma.presetRuleApprover.create({
+    data: {
+      presetRuleId: presetQuick.id,
+      approverRole: "MANAGER",
+      isRequired: true,
+      sequenceOrder: 1,
+    },
+  });
+
+  // Create user-specific approval rules
+  console.log("👤 Creating user-specific approval rules...");
+
+  // User approval rule for techCorpEmployee1
+  const userRule1 = await prisma.userApprovalRule.create({
+    data: {
+      userId: techCorpEmployee1.id,
+      ruleName: "David's Standard Approval",
+      description: "Standard approval process for David Kim",
+      isManagerApprover: true,
+      managerId: techCorpManager1.id,
+      approvalType: "SEQUENTIAL",
+      useSequence: true,
+      isActive: true,
+      isPreset: false,
+    },
+  });
+
+  // User approval rule for techCorpEmployee2
+  const userRule2 = await prisma.userApprovalRule.create({
+    data: {
+      userId: techCorpEmployee2.id,
+      ruleName: "Lisa's High-Value Approval",
+      description: "High-value approval process for Lisa Wang",
+      isManagerApprover: true,
+      managerId: techCorpManager1.id,
+      approvalType: "SEQUENTIAL",
+      useSequence: true,
+      percentageThreshold: 500,
+      isActive: true,
+      isPreset: false,
+    },
+  });
+
+  // User approval rule for techCorpEmployee3
+  const userRule3 = await prisma.userApprovalRule.create({
+    data: {
+      userId: techCorpEmployee3.id,
+      ruleName: "James's Quick Approval",
+      description: "Quick approval process for James Brown",
+      isManagerApprover: true,
+      managerId: techCorpManager2.id,
+      approvalType: "SEQUENTIAL",
+      useSequence: true,
+      percentageThreshold: 200,
+      isActive: true,
+      isPreset: false,
+    },
+  });
+
+  // Create user rule approvers
+  await prisma.userRuleApprover.create({
+    data: {
+      userRuleId: userRule1.id,
+      approverId: techCorpManager1.id,
+      isRequired: true,
+      sequenceOrder: 1,
+    },
+  });
+
+  await prisma.userRuleApprover.create({
+    data: {
+      userRuleId: userRule1.id,
+      approverId: techCorpAdmin.id,
+      isRequired: false,
+      sequenceOrder: 2,
+    },
+  });
+
+  await prisma.userRuleApprover.create({
+    data: {
+      userRuleId: userRule2.id,
+      approverId: techCorpManager1.id,
+      isRequired: true,
+      sequenceOrder: 1,
+    },
+  });
+
+  await prisma.userRuleApprover.create({
+    data: {
+      userRuleId: userRule2.id,
+      approverId: techCorpAdmin.id,
+      isRequired: true,
+      sequenceOrder: 2,
+    },
+  });
+
+  await prisma.userRuleApprover.create({
+    data: {
+      userRuleId: userRule3.id,
+      approverId: techCorpManager2.id,
+      isRequired: true,
+      sequenceOrder: 1,
+    },
+  });
+
   // Create sample expenses
   console.log("💰 Creating sample expenses...");
 
@@ -511,8 +695,12 @@ async function main() {
   console.log("\n📊 Summary:");
   console.log(`- Companies created: 3`);
   console.log(`- Users created: 11`);
-  console.log(`- Approval rules created: 4`);
+  console.log(`- Legacy approval rules created: 4`);
   console.log(`- Approval steps created: 7`);
+  console.log(`- Preset approval rules created: 3`);
+  console.log(`- Preset rule approvers created: 5`);
+  console.log(`- User-specific approval rules created: 3`);
+  console.log(`- User rule approvers created: 5`);
   console.log(`- Expenses created: 8`);
   console.log(`- Approvals created: 5`);
 
