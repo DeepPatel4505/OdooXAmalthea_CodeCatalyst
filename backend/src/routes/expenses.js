@@ -40,7 +40,9 @@ router.get(
     query("page").optional().isInt({ min: 1 }),
     query("limit").optional().isInt({ min: 1, max: 100 }),
     query("search").optional().trim(),
-    query("status").optional().isIn(["draft", "pending", "approved", "rejected"]),
+    query("status")
+      .optional()
+      .isIn(["draft", "pending", "approved", "rejected"]),
     query("category").optional().trim(),
     query("startDate").optional().isISO8601(),
     query("endDate").optional().isISO8601(),
@@ -164,8 +166,10 @@ router.get(
   requireAdmin,
   [
     query("search").optional().trim(),
-    query("status").optional().isIn(["draft", "pending", "approved", "rejected"]),
-    query("category").optional().trim()
+    query("status")
+      .optional()
+      .isIn(["draft", "pending", "approved", "rejected"]),
+    query("category").optional().trim(),
   ],
   async (req, res) => {
     try {
@@ -239,8 +243,9 @@ router.get(
       // Prepare data for Excel
       const excelData = expenses.map((expense) => {
         const approvalHistory = expense.approvals
-          .map((approval) => 
-            `${approval.approver.firstName} ${approval.approver.lastName} (${approval.status})`
+          .map(
+            (approval) =>
+              `${approval.approver.firstName} ${approval.approver.lastName} (${approval.status})`
           )
           .join("; ");
 
@@ -249,15 +254,19 @@ router.get(
           "Employee Name": `${expense.employee.firstName} ${expense.employee.lastName}`,
           "Employee Email": expense.employee.email,
           "Employee Role": expense.employee.role,
-          "Amount": parseFloat(expense.amount),
-          "Currency": expense.currency,
-          "Amount in Company Currency": parseFloat(expense.amountInCompanyCurrency),
-          "Exchange Rate": expense.exchangeRate ? parseFloat(expense.exchangeRate) : "",
-          "Category": expense.category,
-          "Description": expense.description,
+          Amount: parseFloat(expense.amount),
+          Currency: expense.currency,
+          "Amount in Company Currency": parseFloat(
+            expense.amountInCompanyCurrency
+          ),
+          "Exchange Rate": expense.exchangeRate
+            ? parseFloat(expense.exchangeRate)
+            : "",
+          Category: expense.category,
+          Description: expense.description,
           "Expense Date": new Date(expense.expenseDate).toLocaleDateString(),
-          "Status": expense.status,
-          "Current Approver": expense.currentApprover 
+          Status: expense.status,
+          "Current Approver": expense.currentApprover
             ? `${expense.currentApprover.firstName} ${expense.currentApprover.lastName}`
             : "",
           "Approval History": approvalHistory,
@@ -297,24 +306,29 @@ router.get(
       XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
 
       // Generate filename with timestamp
-      const timestamp = new Date().toISOString().split('T')[0];
+      const timestamp = new Date().toISOString().split("T")[0];
       const statusFilter = status ? `_${status}` : "";
       const filename = `expenses_export${statusFilter}_${timestamp}.xlsx`;
 
       // Convert to buffer
-      const excelBuffer = XLSX.write(workbook, { 
-        type: "buffer", 
-        bookType: "xlsx" 
+      const excelBuffer = XLSX.write(workbook, {
+        type: "buffer",
+        bookType: "xlsx",
       });
 
       // Set response headers
-      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`
+      );
       res.setHeader("Content-Length", excelBuffer.length);
 
       // Send the Excel file
       res.send(excelBuffer);
-
     } catch (error) {
       console.error("Excel export error:", error);
       res.status(500).json({
@@ -453,42 +467,85 @@ router.post(
 
       // Only set up approval workflow if not a draft
       if (status !== "DRAFT") {
-        // Get approval workflow
-        const approvalRule = await prisma.approvalRule.findFirst({
+        // First, try to get user-specific approval rule
+        const userApprovalRule = await prisma.userApprovalRule.findFirst({
           where: {
-            companyId: req.user.company_id,
+            userId: req.user.id,
             isActive: true,
           },
           include: {
-            approvalSteps: true,
-            specificApprover: true,
+            approvers: {
+              include: {
+                approver: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    role: true,
+                  },
+                },
+              },
+              orderBy: { sequenceOrder: "asc" },
+            },
+            manager: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
           },
         });
 
-        if (approvalRule) {
-          // Determine current approver based on rule type
-          if (approvalRule.isManagerApprover) {
-            // Find employee's manager
-            const employee = await prisma.user.findUnique({
-              where: { id: req.user.id },
-              include: { manager: true },
-            });
+        if (userApprovalRule) {
+          // Use user-specific approval rule
+          if (userApprovalRule.isManagerApprover && userApprovalRule.manager) {
+            // Manager is the first approver
+            currentApproverId = userApprovalRule.manager.id;
+          } else if (userApprovalRule.approvers.length > 0) {
+            // First approver in the sequence
+            currentApproverId = userApprovalRule.approvers[0].approverId;
+          }
+        } else {
+          // Fallback to company-wide approval rule
+          const approvalRule = await prisma.approvalRule.findFirst({
+            where: {
+              companyId: req.user.company_id,
+              isActive: true,
+            },
+            include: {
+              approvalSteps: true,
+              specificApprover: true,
+            },
+          });
 
-            if (employee.manager) {
-              currentApproverId = employee.manager.id;
+          if (approvalRule) {
+            // Determine current approver based on rule type
+            if (approvalRule.isManagerApprover) {
+              // Find employee's manager
+              const employee = await prisma.user.findUnique({
+                where: { id: req.user.id },
+                include: { manager: true },
+              });
+
+              if (employee.manager) {
+                currentApproverId = employee.manager.id;
+              }
+            } else if (
+              approvalRule.approvalType === "SEQUENTIAL" &&
+              approvalRule.approvalSteps.length > 0
+            ) {
+              // Set current approver to first step approver
+              currentApproverId = approvalRule.approvalSteps[0].approverId;
+            } else if (
+              approvalRule.approvalType === "SPECIFIC_APPROVER" &&
+              approvalRule.specificApprover
+            ) {
+              // Set current approver to specific approver
+              currentApproverId = approvalRule.specificApprover.id;
             }
-          } else if (
-            approvalRule.approvalType === "SEQUENTIAL" &&
-            approvalRule.approvalSteps.length > 0
-          ) {
-            // Set current approver to first step approver
-            currentApproverId = approvalRule.approvalSteps[0].approverId;
-          } else if (
-            approvalRule.approvalType === "SPECIFIC_APPROVER" &&
-            approvalRule.specificApprover
-          ) {
-            // Set current approver to specific approver
-            currentApproverId = approvalRule.specificApprover.id;
           }
         }
       }
@@ -532,7 +589,10 @@ router.post(
 
       res.status(201).json({
         success: true,
-        message: status === "DRAFT" ? "Expense saved as draft" : "Expense submitted successfully",
+        message:
+          status === "DRAFT"
+            ? "Expense saved as draft"
+            : "Expense submitted successfully",
         data: { expense },
       });
     } catch (error) {
@@ -750,7 +810,5 @@ router.get("/stats/summary", requireEmployeeOrAbove, async (req, res) => {
     });
   }
 });
-
-
 
 export default router;

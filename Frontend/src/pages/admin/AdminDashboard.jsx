@@ -8,6 +8,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import {
   Users,
   Receipt,
@@ -37,7 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { expenseAPI, userAPI } from "@/services/api";
+import { expenseAPI, userAPI, approvalAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Remove mock data - will be replaced with real API data
@@ -113,6 +116,12 @@ export function AdminDashboard() {
     averageProcessingTime: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [approvalComment, setApprovalComment] = useState("");
+  const [rejectionComment, setRejectionComment] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -129,9 +138,13 @@ export function AdminDashboard() {
 
         if (expensesResponse.success) {
           setExpenses(expensesResponse.data.expenses);
-          
+
           // Extract unique categories
-          const categories = [...new Set(expensesResponse.data.expenses.map(expense => expense.category))];
+          const categories = [
+            ...new Set(
+              expensesResponse.data.expenses.map((expense) => expense.category)
+            ),
+          ];
           setAvailableCategories(categories);
         }
 
@@ -202,21 +215,90 @@ export function AdminDashboard() {
     return matchesSearch && matchesStatusFilter && matchesCategoryFilter;
   });
 
-  const handleApproveExpense = async (expenseId) => {
+  const handleApproveClick = (expense) => {
+    setSelectedExpense(expense);
+    setApprovalComment("");
+    setShowApprovalModal(true);
+  };
+
+  const handleRejectClick = (expense) => {
+    setSelectedExpense(expense);
+    setRejectionComment("");
+    setShowRejectionModal(true);
+  };
+
+  const handleApproveExpense = async () => {
+    if (!selectedExpense) return;
+
+    setIsProcessing(true);
     try {
-      // TODO: Implement approval via approval API
-      console.log("Approving expense:", expenseId);
+      const response = await approvalAPI.makeDecision(selectedExpense.id, {
+        status: "approved",
+        comments: approvalComment,
+      });
+
+      if (response.success) {
+        // Refresh the expenses data
+        const expensesResponse = await expenseAPI.getExpenses({
+          page: 1,
+          limit: 50,
+        });
+        if (expensesResponse.success) {
+          setExpenses(expensesResponse.data.expenses || []);
+        }
+
+        setShowApprovalModal(false);
+        setApprovalComment("");
+        setSelectedExpense(null);
+        alert("Expense approved successfully!");
+      } else {
+        throw new Error(response.message || "Approval failed");
+      }
     } catch (error) {
-      console.error("Failed to approve expense:", error);
+      console.error("Approval failed:", error);
+      alert("Failed to approve expense. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleRejectExpense = async (expenseId) => {
+  const handleRejectExpense = async () => {
+    if (!selectedExpense) return;
+
+    if (!rejectionComment.trim()) {
+      alert("Please provide a reason for rejection.");
+      return;
+    }
+
+    setIsProcessing(true);
     try {
-      // TODO: Implement rejection via approval API
-      console.log("Rejecting expense:", expenseId);
+      const response = await approvalAPI.makeDecision(selectedExpense.id, {
+        status: "rejected",
+        comments: rejectionComment,
+      });
+
+      if (response.success) {
+        // Refresh the expenses data
+        const expensesResponse = await expenseAPI.getExpenses({
+          page: 1,
+          limit: 50,
+        });
+        if (expensesResponse.success) {
+          setExpenses(expensesResponse.data.expenses || []);
+        }
+
+        setShowRejectionModal(false);
+        setRejectionComment("");
+        setSelectedExpense(null);
+        alert("Expense rejected successfully!");
+      } else {
+        throw new Error(response.message || "Rejection failed");
+      }
     } catch (error) {
-      console.error("Failed to reject expense:", error);
+      console.error("Rejection failed:", error);
+      alert("Failed to reject expense. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -531,14 +613,14 @@ export function AdminDashboard() {
                               variant="default"
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleApproveExpense(expense.id)}
+                              onClick={() => handleApproveClick(expense)}
                             >
                               Approve
                             </Button>
                             <Button
                               variant="destructive"
                               size="sm"
-                              onClick={() => handleRejectExpense(expense.id)}
+                              onClick={() => handleRejectClick(expense)}
                             >
                               Reject
                             </Button>
@@ -604,6 +686,109 @@ export function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Approval Modal */}
+      <Modal
+        isOpen={showApprovalModal}
+        onClose={() => setShowApprovalModal(false)}
+        title="Approve Expense"
+      >
+        <div className="space-y-4">
+          <p>Are you sure you want to approve this expense?</p>
+          {selectedExpense && (
+            <div className="bg-muted p-3 rounded-lg">
+              <p className="font-medium">{selectedExpense.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {parseFloat(selectedExpense.amount).toLocaleString(undefined, {
+                  style: "currency",
+                  currency: selectedExpense.currency || "USD",
+                })}{" "}
+                • {selectedExpense.employee?.firstName}{" "}
+                {selectedExpense.employee?.lastName}
+              </p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="approval-comment">Comments (Optional)</Label>
+            <Textarea
+              id="approval-comment"
+              placeholder="Add any comments about this approval..."
+              value={approvalComment}
+              onChange={(e) => setApprovalComment(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleApproveExpense}
+              disabled={isProcessing}
+              className="flex-1"
+            >
+              {isProcessing ? "Approving..." : "Yes, Approve"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowApprovalModal(false)}
+              disabled={isProcessing}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Rejection Modal */}
+      <Modal
+        isOpen={showRejectionModal}
+        onClose={() => setShowRejectionModal(false)}
+        title="Reject Expense"
+      >
+        <div className="space-y-4">
+          <p>Are you sure you want to reject this expense?</p>
+          {selectedExpense && (
+            <div className="bg-muted p-3 rounded-lg">
+              <p className="font-medium">{selectedExpense.description}</p>
+              <p className="text-sm text-muted-foreground">
+                {parseFloat(selectedExpense.amount).toLocaleString(undefined, {
+                  style: "currency",
+                  currency: selectedExpense.currency || "USD",
+                })}{" "}
+                • {selectedExpense.employee?.firstName}{" "}
+                {selectedExpense.employee?.lastName}
+              </p>
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="rejection-reason">
+              Reason for rejection (Required)
+            </Label>
+            <Textarea
+              id="rejection-reason"
+              placeholder="Please provide a reason for rejection..."
+              value={rejectionComment}
+              onChange={(e) => setRejectionComment(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleRejectExpense}
+              disabled={isProcessing || !rejectionComment.trim()}
+              variant="destructive"
+              className="flex-1"
+            >
+              {isProcessing ? "Rejecting..." : "Yes, Reject"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowRejectionModal(false)}
+              disabled={isProcessing}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

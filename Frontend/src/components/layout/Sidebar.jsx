@@ -23,11 +23,6 @@ const navigation = {
   ],
   manager: [
     { name: "Dashboard", href: "/manager", icon: Home },
-    {
-      name: "Pending Approvals",
-      href: "/manager/approvals",
-      icon: CheckCircle,
-    },
     { name: "Team Expenses", href: "/manager/expenses", icon: Receipt },
     { name: "Reports", href: "/manager/reports", icon: BarChart3 },
   ],
@@ -41,7 +36,6 @@ const navigation = {
 export function Sidebar() {
   const { user } = useAuth();
   const location = useLocation();
-
 
   if (!user) return null;
 

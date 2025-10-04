@@ -9,6 +9,10 @@ import {
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/layout/Layout";
+import { LandingPage } from "@/pages/LandingPage";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Receipt } from "lucide-react";
 // import { AuthPage } from "@/pages/AuthPage";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
@@ -43,9 +47,8 @@ function ProtectedRoute({ children, allowedRoles }) {
   return <Layout>{children}</Layout>;
 }
 
-// Auth Page Component
-function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+// Login Page Component (Sign In Only)
+function LoginPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
@@ -61,31 +64,123 @@ function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Expense Manager</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your expense reimbursements efficiently
-          </p>
-        </div>
-
-        {isLogin ? (
-          <LoginForm onSuccess={handleAuthSuccess} />
-        ) : (
-          <SignupForm onSuccess={handleAuthSuccess} />
-        )}
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="ml-1 text-primary hover:underline"
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      {/* Header */}
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              ExpenseFlow
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/landing")}
+              className="text-muted-foreground hover:text-foreground"
             >
-              {isLogin ? "Sign up" : "Sign in"}
-            </button>
-          </p>
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-center p-4 flex-1">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Sign In</h1>
+            <p className="text-muted-foreground mt-2">
+              Welcome back! Please sign in to your account
+            </p>
+          </div>
+
+          <LoginForm onSuccess={handleAuthSuccess} />
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?
+              <button
+                onClick={() => navigate("/signup")}
+                className="ml-1 text-primary hover:underline"
+              >
+                Sign up
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Signup Page Component
+function SignupPage() {
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleAuthSuccess = () => {
+    // The AuthContext will automatically update the authentication state
+    // React Router will handle the navigation based on the user's role
+    // No need to reload the page - just navigate to the default route
+    navigate("/", { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      {/* Header */}
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              ExpenseFlow
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/landing")}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-center p-4 flex-1">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Sign Up</h1>
+            <p className="text-muted-foreground mt-2">
+              Create your account to get started
+            </p>
+          </div>
+
+          <SignupForm onSuccess={handleAuthSuccess} />
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?
+              <button
+                onClick={() => navigate("/login")}
+                className="ml-1 text-primary hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -111,7 +206,7 @@ function AppContent() {
   const { user, isLoading } = useAuth();
 
   const getDefaultRoute = () => {
-    if (!user) return "/login";
+    if (!user) return "/landing";
     switch (user.role?.toLowerCase()) {
       case "admin":
         return "/admin";
@@ -120,7 +215,7 @@ function AppContent() {
       case "employee":
         return "/employee";
       default:
-        return "/login";
+        return "/landing";
     }
   };
 
@@ -139,9 +234,12 @@ function AppContent() {
   return (
     <Router>
       <Routes>
+        {/* Landing Page */}
+        <Route path="/landing" element={<LandingPage />} />
+
         {/* Auth Routes */}
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/signup" element={<AuthPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
         {/* Employee Routes */}
@@ -277,8 +375,8 @@ function AppContent() {
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
 
         {/* 404 Route - only for truly invalid routes */}
-        <Route 
-          path="*" 
+        <Route
+          path="*"
           element={
             <div className="min-h-screen flex items-center justify-center bg-background">
               <div className="text-center">
@@ -286,7 +384,7 @@ function AppContent() {
                 <p className="text-muted-foreground mt-2">
                   The page you're looking for doesn't exist.
                 </p>
-                <button 
+                <button
                   onClick={() => window.history.back()}
                   className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                 >
@@ -294,7 +392,7 @@ function AppContent() {
                 </button>
               </div>
             </div>
-          } 
+          }
         />
       </Routes>
     </Router>

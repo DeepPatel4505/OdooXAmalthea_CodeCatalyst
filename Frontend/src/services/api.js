@@ -77,11 +77,17 @@ class ApiService {
       ...options,
     };
 
+    console.log(`🌐 Making API request to: ${url}`, { config });
+
     try {
       const response = await fetch(url, config);
+      console.log(`📡 Response status: ${response.status} for ${endpoint}`);
+
       const data = await response.json();
+      console.log(`📊 Response data for ${endpoint}:`, data);
 
       if (!response.ok) {
+        console.error(`❌ API request failed for ${endpoint}:`, data);
         throw new Error(
           data.message || `HTTP error! status: ${response.status}`
         );
@@ -89,7 +95,7 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error);
+      console.error(`❌ API request failed for ${endpoint}:`, error);
       throw error;
     }
   }
