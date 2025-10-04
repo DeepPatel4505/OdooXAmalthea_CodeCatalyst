@@ -3,10 +3,12 @@ import { body, validationResult, query } from "express-validator";
 import {
   authenticateToken,
   requireEmployeeOrAbove,
+  requireAdmin,
 } from "../middleware/auth.js";
 import { checkExpenseAccess } from "../middleware/roleCheck.js";
 import prisma from "../config/database.js";
 import currencyService from "../services/currencyService.js";
+import XLSX from "xlsx";
 
 const router = express.Router();
 
@@ -151,6 +153,174 @@ router.get(
         error: true,
         message: "Failed to retrieve expenses",
         code: "GET_EXENSES_ERROR",
+      });
+    }
+  }
+);
+
+// Export expenses to Excel (Admin only)
+router.get(
+  "/export/excel",
+  requireAdmin,
+  [
+    query("search").optional().trim(),
+    query("status").optional().isIn(["draft", "pending", "approved", "rejected"]),
+    query("category").optional().trim()
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: true,
+          message: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: errors.array(),
+        });
+      }
+
+      const search = req.query.search;
+      const status = req.query.status;
+      const category = req.query.category;
+
+      // Build where clause for filtering
+      let where = {
+        companyId: req.user.company_id,
+      };
+
+      // Add filters
+      if (search) {
+        where.description = { contains: search, mode: "insensitive" };
+      }
+
+      if (status) {
+        where.status = status.toUpperCase();
+      }
+
+      if (category) {
+        where.category = category;
+      }
+
+      // Fetch all expenses with related data
+      const expenses = await prisma.expense.findMany({
+        where,
+        include: {
+          employee: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          },
+          currentApprover: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          approvals: {
+            include: {
+              approver: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Prepare data for Excel
+      const excelData = expenses.map((expense) => {
+        const approvalHistory = expense.approvals
+          .map((approval) => 
+            `${approval.approver.firstName} ${approval.approver.lastName} (${approval.status})`
+          )
+          .join("; ");
+
+        return {
+          "Expense ID": expense.id,
+          "Employee Name": `${expense.employee.firstName} ${expense.employee.lastName}`,
+          "Employee Email": expense.employee.email,
+          "Employee Role": expense.employee.role,
+          "Amount": parseFloat(expense.amount),
+          "Currency": expense.currency,
+          "Amount in Company Currency": parseFloat(expense.amountInCompanyCurrency),
+          "Exchange Rate": expense.exchangeRate ? parseFloat(expense.exchangeRate) : "",
+          "Category": expense.category,
+          "Description": expense.description,
+          "Expense Date": new Date(expense.expenseDate).toLocaleDateString(),
+          "Status": expense.status,
+          "Current Approver": expense.currentApprover 
+            ? `${expense.currentApprover.firstName} ${expense.currentApprover.lastName}`
+            : "",
+          "Approval History": approvalHistory,
+          "Receipt URL": expense.receiptUrl || "",
+          "Created At": new Date(expense.createdAt).toLocaleString(),
+          "Updated At": new Date(expense.updatedAt).toLocaleString(),
+        };
+      });
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 15 }, // Expense ID
+        { wch: 20 }, // Employee Name
+        { wch: 25 }, // Employee Email
+        { wch: 15 }, // Employee Role
+        { wch: 12 }, // Amount
+        { wch: 10 }, // Currency
+        { wch: 20 }, // Amount in Company Currency
+        { wch: 15 }, // Exchange Rate
+        { wch: 15 }, // Category
+        { wch: 30 }, // Description
+        { wch: 15 }, // Expense Date
+        { wch: 12 }, // Status
+        { wch: 20 }, // Current Approver
+        { wch: 40 }, // Approval History
+        { wch: 30 }, // Receipt URL
+        { wch: 20 }, // Created At
+        { wch: 20 }, // Updated At
+      ];
+      worksheet["!cols"] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().split('T')[0];
+      const statusFilter = status ? `_${status}` : "";
+      const filename = `expenses_export${statusFilter}_${timestamp}.xlsx`;
+
+      // Convert to buffer
+      const excelBuffer = XLSX.write(workbook, { 
+        type: "buffer", 
+        bookType: "xlsx" 
+      });
+
+      // Set response headers
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Length", excelBuffer.length);
+
+      // Send the Excel file
+      res.send(excelBuffer);
+
+    } catch (error) {
+      console.error("Excel export error:", error);
+      res.status(500).json({
+        error: true,
+        message: "Failed to export expenses to Excel",
+        code: "EXCEL_EXPORT_ERROR",
       });
     }
   }
@@ -580,5 +750,7 @@ router.get("/stats/summary", requireEmployeeOrAbove, async (req, res) => {
     });
   }
 });
+
+
 
 export default router;

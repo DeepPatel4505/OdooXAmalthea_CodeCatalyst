@@ -101,7 +101,9 @@ export function AdminDashboard() {
   const { user } = useAuth();
   const [expenseFilter, setExpenseFilter] = useState("all");
   const [expenseSearch, setExpenseSearch] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("all");
   const [expenses, setExpenses] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -127,6 +129,10 @@ export function AdminDashboard() {
 
         if (expensesResponse.success) {
           setExpenses(expensesResponse.data.expenses);
+          
+          // Extract unique categories
+          const categories = [...new Set(expensesResponse.data.expenses.map(expense => expense.category))];
+          setAvailableCategories(categories);
         }
 
         if (statsResponse.success && userStatsResponse.success) {
@@ -185,11 +191,15 @@ export function AdminDashboard() {
       expense.category.toLowerCase().includes(expenseSearch.toLowerCase());
 
     const normalizedStatus = expense.status?.toLowerCase();
-    const matchesFilter =
+    const matchesStatusFilter =
       expenseFilter === "all" ||
       normalizedStatus.includes(expenseFilter.toLowerCase());
 
-    return matchesSearch && matchesFilter;
+    const matchesCategoryFilter =
+      expenseCategory === "all" ||
+      expense.category.toLowerCase() === expenseCategory.toLowerCase();
+
+    return matchesSearch && matchesStatusFilter && matchesCategoryFilter;
   });
 
   const handleApproveExpense = async (expenseId) => {
@@ -447,6 +457,19 @@ export function AdminDashboard() {
                 <SelectItem value="pending">Pending Approval</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {availableCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
