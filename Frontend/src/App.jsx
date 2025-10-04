@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -33,13 +34,61 @@ function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(user.role?.toLowerCase())) {
     return <Navigate to="/unauthorized" replace />;
   }
 
   return <Layout>{children}</Layout>;
 }
 
+// Auth Page Component
+function AuthPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  if (isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleAuthSuccess = () => {
+    // The AuthContext will automatically update the authentication state
+    // React Router will handle the navigation based on the user's role
+    // No need to reload the page - just navigate to the default route
+    navigate("/", { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold">Expense Manager</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage your expense reimbursements efficiently
+          </p>
+        </div>
+
+        {isLogin ? (
+          <LoginForm onSuccess={handleAuthSuccess} />
+        ) : (
+          <SignupForm onSuccess={handleAuthSuccess} />
+        )}
+
+        <div className="mt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            {isLogin ? "Don't have an account?" : "Already have an account?"}
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="ml-1 text-primary hover:underline"
+            >
+              {isLogin ? "Sign up" : "Sign in"}
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Unauthorized Page
 function UnauthorizedPage() {
@@ -61,7 +110,7 @@ function AppContent() {
 
   const getDefaultRoute = () => {
     if (!user) return "/login";
-    switch (user.role) {
+    switch (user.role?.toLowerCase()) {
       case "admin":
         return "/admin";
       case "manager":

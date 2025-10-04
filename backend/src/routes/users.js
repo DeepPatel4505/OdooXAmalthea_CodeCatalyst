@@ -446,4 +446,50 @@ router.get("/managers/list", requireAdmin, async (req, res) => {
   }
 });
 
+// Get user statistics (Admin only)
+router.get("/stats", requireAdmin, async (req, res) => {
+  try {
+    const where = {
+      companyId: req.user.company_id,
+    };
+
+    const [
+      totalUsers,
+      activeUsers,
+      inactiveUsers,
+      adminUsers,
+      managerUsers,
+      employeeUsers,
+    ] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.count({ where: { ...where, isActive: true } }),
+      prisma.user.count({ where: { ...where, isActive: false } }),
+      prisma.user.count({ where: { ...where, role: "ADMIN" } }),
+      prisma.user.count({ where: { ...where, role: "MANAGER" } }),
+      prisma.user.count({ where: { ...where, role: "EMPLOYEE" } }),
+    ]);
+
+    const statistics = {
+      totalUsers,
+      activeUsers,
+      inactiveUsers,
+      adminUsers,
+      managerUsers,
+      employeeUsers,
+    };
+
+    res.json({
+      success: true,
+      data: { statistics },
+    });
+  } catch (error) {
+    console.error("Get user statistics error:", error);
+    res.status(500).json({
+      error: true,
+      message: "Failed to retrieve user statistics",
+      code: "GET_USER_STATISTICS_ERROR",
+    });
+  }
+});
+
 export default router;

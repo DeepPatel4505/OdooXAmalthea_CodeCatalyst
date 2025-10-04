@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +18,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { currencyAPI } from "@/services/api";
 
-// This would be populated from the countries API
-const COUNTRIES = [
+// Default countries list - will be populated from API
+const DEFAULT_COUNTRIES = [
   { code: "US", name: "United States", currency: "USD" },
   { code: "GB", name: "United Kingdom", currency: "GBP" },
   { code: "DE", name: "Germany", currency: "EUR" },
@@ -45,8 +46,10 @@ const ROLES = [
 ];
 
 export function SignupForm({ onSuccess }) {
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [countries, setCountries] = useState(DEFAULT_COUNTRIES);
+  const [error, setError] = useState(null);
   const {
     register,
     handleSubmit,
@@ -58,28 +61,43 @@ export function SignupForm({ onSuccess }) {
   const selectedCountry = watch("country");
   const selectedRole = watch("role");
 
+  // Load countries from API
+  useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        const response = await currencyAPI.getCountries();
+        if (response.success) {
+          setCountries(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load countries:", error);
+        // Keep default countries if API fails
+      }
+    };
+    loadCountries();
+  }, []);
+
   const onSubmit = async (data) => {
     setIsLoading(true);
-    try {
-      // TODO: Connect to API
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    setError(null);
 
-      const country = COUNTRIES.find((c) => c.code === data.country);
-      const mockUser = {
-        id: Date.now().toString(),
+    try {
+      // Map frontend fields to backend expected fields
+      const signupData = {
+        firstName: data.name.split(" ")[0] || data.name,
+        lastName: data.name.split(" ").slice(1).join(" ") || "",
         email: data.email,
-        name: data.name,
-        role: data.role,
+        password: data.password,
         company: data.company,
-        country: country?.code,
-        currency: country?.currency || "USD",
+        country: data.country,
+        role: data.role,
       };
 
-      login(mockUser);
+      await signup(signupData);
       onSuccess?.();
     } catch (error) {
       console.error("Signup failed:", error);
+      setError(error.message || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -166,7 +184,7 @@ export function SignupForm({ onSuccess }) {
                 <SelectValue placeholder="Select your country" />
               </SelectTrigger>
               <SelectContent>
-                {COUNTRIES.map((country) => (
+                {countries.map((country) => (
                   <SelectItem key={country.code} value={country.code}>
                     {country.name} ({country.currency})
                   </SelectItem>
@@ -202,6 +220,12 @@ export function SignupForm({ onSuccess }) {
             {isLoading ? "Creating account..." : "Create Account"}
           </Button>
         </form>
+
+        {error && (
+          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

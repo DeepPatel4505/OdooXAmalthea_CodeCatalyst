@@ -14,6 +14,7 @@ import approvalRoutes from "./routes/approvals.js";
 import approvalRulesRoutes from "./routes/approval-rules.js";
 import currencyRoutes from "./routes/currency.js";
 import ocrRoutes from "./routes/ocr.js";
+import companyRoutes from "./routes/company.js";
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.use("/api/approvals", approvalRoutes);
 app.use("/api/approval-rules", approvalRulesRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/ocr", ocrRoutes);
+app.use("/api/company", companyRoutes);
 
 // 404 handler
 app.use(notFound);
