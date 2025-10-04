@@ -322,35 +322,39 @@ export function CompanySettings() {
             <div className="space-y-2">
               <Label htmlFor="currency">Default Currency</Label>
               <input type="hidden" {...register("defaultCurrency")} />
-              <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                <DollarSign className="h-4 w-4" />
-                <span className="font-medium">{company.defaultCurrency}</span>
-                <Badge variant="outline">{selectedCountry?.currency}</Badge>
+              <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50 dark:bg-muted/80 dark:border-muted-foreground/20">
+                <DollarSign className="h-4 w-4 text-blue-700 dark:text-blue-300" />
+                <span className="font-medium text-gray-900 dark:text-gray-100">{company.defaultCurrency}</span>
+                <Badge variant="outline" className="dark:border-blue-400 dark:text-blue-300">
+                  {selectedCountry?.currency}
+                </Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground dark:text-gray-400">
                 Automatically set based on country selection
               </p>
             </div>
           </div>
 
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">
+          <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+            <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-2">
               Currency Configuration
             </h4>
             <div className="grid gap-4 md:grid-cols-3 text-sm">
               <div>
-                <span className="font-medium">Symbol:</span>{" "}
-                {currencyFormat?.symbol || "$"}
+                <span className="font-medium text-gray-900 dark:text-gray-100">Symbol:</span>{" "}
+                <span className="text-gray-800 dark:text-gray-200">{currencyFormat?.symbol || "$"}</span>
               </div>
               <div>
-                <span className="font-medium">Position:</span>{" "}
-                {currencyFormat?.position === "before"
-                  ? "Before amount"
-                  : "After amount"}
+                <span className="font-medium text-gray-900 dark:text-gray-100">Position:</span>{" "}
+                <span className="text-gray-800 dark:text-gray-200">
+                  {currencyFormat?.position === "before"
+                    ? "Before amount"
+                    : "After amount"}
+                </span>
               </div>
               <div>
-                <span className="font-medium">Decimals:</span>{" "}
-                {currencyFormat?.decimals || 2}
+                <span className="font-medium text-gray-900 dark:text-gray-100">Decimals:</span>{" "}
+                <span className="text-gray-800 dark:text-gray-200">{currencyFormat?.decimals || 2}</span>
               </div>
             </div>
           </div>

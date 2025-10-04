@@ -296,8 +296,9 @@ export function ExpenseHistory() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Summary Cards - Only for Admin and Manager */}
+      {(user?.role === "ADMIN" || user?.role === "MANAGER") && (
+        <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Submitted</CardTitle>
@@ -342,9 +343,11 @@ export function ExpenseHistory() {
             </p>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      )}
 
-      {/* Filters Section */}
+      {/* Filters Section - Only for Admin and Manager */}
+      {(user?.role === "ADMIN" || user?.role === "MANAGER") && (
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
@@ -390,6 +393,7 @@ export function ExpenseHistory() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Tab-based Interface - Matching Mockup - Only for Employees */}
       {user?.role !== "MANAGER" && user.role !== "ADMIN" && (
