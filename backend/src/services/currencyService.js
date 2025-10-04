@@ -10,11 +10,11 @@ class CurrencyService {
   async getCountries() {
     try {
       const response = await axios.get(
-        "https://restcountries.com/v3.1/all?fields=name,currencies"
+        "https://restcountries.com/v3.1/all?fields=name,currencies,cca2,cca3"
       );
 
       return response.data.map((country) => ({
-        code: country.name.common,
+        code: country.cca2 || country.cca3,
         name: country.name.common,
         currency: Object.keys(country.currencies || {})[0] || "USD",
         symbol: Object.values(country.currencies || {})[0]?.symbol || "$",
