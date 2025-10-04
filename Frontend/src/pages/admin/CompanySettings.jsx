@@ -75,6 +75,7 @@ export function CompanySettings() {
     defaultCurrency: "USD",
   });
   const [countries, setCountries] = useState(DEFAULT_COUNTRIES);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -87,6 +88,16 @@ export function CompanySettings() {
     setValue,
     watch,
   } = useForm();
+
+  // Watch for form changes
+  const watchedFields = watch();
+
+  // Track form changes
+  useEffect(() => {
+    if (isDataLoaded) {
+      setHasChanges(true);
+    }
+  }, [watchedFields, isDataLoaded]);
 
   // Load company settings and countries on component mount
   useEffect(() => {
@@ -109,14 +120,18 @@ export function CompanySettings() {
           );
         }
 
-        if (countriesResponse.success) {
-          setCountries(countriesResponse.data);
+        if (
+          countriesResponse.success &&
+          Array.isArray(countriesResponse.data.countries)
+        ) {
+          setCountries(countriesResponse.data.countries);
         }
       } catch (error) {
         console.error("Failed to fetch company settings:", error);
         setError("Failed to load company settings");
       } finally {
         setIsLoading(false);
+        setIsDataLoaded(true);
       }
     };
 
@@ -139,30 +154,39 @@ export function CompanySettings() {
       }
     } catch (error) {
       console.error("Failed to save settings:", error);
-      setError(error.message || "Failed to save settings");
+      setError(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to save settings"
+      );
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleCountryChange = (countryCode) => {
-    const selectedCountry = countries.find((c) => c.code === countryCode);
-    if (selectedCountry) {
-      setCompany({
-        ...company,
-        country: countryCode,
-        defaultCurrency: selectedCountry.currency,
-      });
-      setValue("country", countryCode);
-      setValue("defaultCurrency", selectedCountry.currency);
-      setHasChanges(true);
+    if (Array.isArray(countries)) {
+      const selectedCountry = countries.find((c) => c.code === countryCode);
+      if (selectedCountry) {
+        setCompany({
+          ...company,
+          country: countryCode,
+          defaultCurrency: selectedCountry.currency,
+        });
+        setValue("country", countryCode);
+        setValue("defaultCurrency", selectedCountry.currency);
+        setHasChanges(true);
+      }
     }
   };
 
-  const selectedCountry = countries.find((c) => c.code === company.country);
-  const currencyFormat = CURRENCY_FORMATS[company.defaultCurrency];
+  const selectedCountry = Array.isArray(countries)
+    ? countries.find((c) => c.code === company.country)
+    : null;
+  const currencyFormat =
+    CURRENCY_FORMATS[company.defaultCurrency] || CURRENCY_FORMATS.USD;
 
-  if (isLoading) {
+  if (isLoading || !isDataLoaded) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2">
@@ -220,10 +244,6 @@ export function CompanySettings() {
               <Input
                 id="company-name"
                 {...register("name", { required: "Company name is required" })}
-                onChange={(e) => {
-                  setValue("name", e.target.value);
-                  setHasChanges(true);
-                }}
                 placeholder="Enter company name"
               />
               {errors.name && (
@@ -279,6 +299,7 @@ export function CompanySettings() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
+              <input type="hidden" {...register("country")} />
               <Select
                 value={company.country}
                 onValueChange={handleCountryChange}
@@ -287,17 +308,19 @@ export function CompanySettings() {
                   <SelectValue placeholder="Select country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.name} ({country.code})
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(countries) &&
+                    countries.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {country.name} ({country.code})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="currency">Default Currency</Label>
+              <input type="hidden" {...register("defaultCurrency")} />
               <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
                 <DollarSign className="h-4 w-4" />
                 <span className="font-medium">{company.defaultCurrency}</span>
@@ -316,17 +339,17 @@ export function CompanySettings() {
             <div className="grid gap-4 md:grid-cols-3 text-sm">
               <div>
                 <span className="font-medium">Symbol:</span>{" "}
-                {currencyFormat.symbol}
+                {currencyFormat?.symbol || "$"}
               </div>
               <div>
                 <span className="font-medium">Position:</span>{" "}
-                {currencyFormat.position === "before"
+                {currencyFormat?.position === "before"
                   ? "Before amount"
                   : "After amount"}
               </div>
               <div>
                 <span className="font-medium">Decimals:</span>{" "}
-                {currencyFormat.decimals}
+                {currencyFormat?.decimals || 2}
               </div>
             </div>
           </div>

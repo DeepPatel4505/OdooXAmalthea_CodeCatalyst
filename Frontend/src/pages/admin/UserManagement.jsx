@@ -54,6 +54,7 @@ export function UserManagement() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,11 +63,13 @@ export function UserManagement() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid },
     reset,
     setValue,
     watch,
-  } = useForm();
+  } = useForm({
+    mode: "onChange",
+  });
 
   // Load users and managers on component mount
   useEffect(() => {
@@ -161,6 +164,53 @@ export function UserManagement() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const onEditSubmit = async (data) => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // Keep role in lowercase as backend expects lowercase values
+      // isActive should already be a boolean from the form
+      const submitData = {
+        ...data,
+      };
+
+      // Remove password if it's empty (don't update password)
+      if (!submitData.password || submitData.password.trim() === "") {
+        delete submitData.password;
+      }
+
+      const response = await userAPI.updateUser(selectedUser.id, submitData);
+      if (response.success) {
+        // Refresh users list
+        const usersResponse = await userAPI.getUsers({ page: 1, limit: 100 });
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users);
+        }
+        setShowEditUserModal(false);
+        setSelectedUser(null);
+        reset();
+      }
+    } catch (error) {
+      console.error("Failed to update user:", error);
+      setError(error.message || "Failed to update user");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setShowEditUserModal(true);
+    // Pre-populate form with user data
+    setValue("firstName", user.firstName);
+    setValue("lastName", user.lastName);
+    setValue("email", user.email);
+    setValue("role", user.role?.toLowerCase());
+    setValue("managerId", user.managerId || "");
+    setValue("isActive", user.isActive);
   };
 
   const handleDeleteUser = async (userId) => {
@@ -305,7 +355,7 @@ export function UserManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setSelectedUser(user)}
+                          onClick={() => handleEditUser(user)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -416,11 +466,13 @@ export function UserManagement() {
                 type="password"
                 placeholder="Enter password"
                 {...register("password", {
-                  required: "Password is required",
-                  minLength: {
-                    value: 8,
-                    message: "Password must be at least 8 characters",
-                  },
+                  required: showAddUserModal ? "Password is required" : false,
+                  minLength: showAddUserModal
+                    ? {
+                        value: 8,
+                        message: "Password must be at least 8 characters",
+                      }
+                    : undefined,
                 })}
               />
               {errors.password && (
@@ -483,6 +535,186 @@ export function UserManagement() {
               variant="outline"
               onClick={() => {
                 setShowAddUserModal(false);
+                reset();
+                setError(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit User Modal */}
+      <Modal
+        isOpen={showEditUserModal}
+        onClose={() => {
+          setShowEditUserModal(false);
+          setSelectedUser(null);
+          reset();
+          setError(null);
+        }}
+        title="Edit User"
+      >
+        <form onSubmit={handleSubmit(onEditSubmit)} className="space-y-4">
+          <p className="text-muted-foreground">
+            Update user information and permissions.
+          </p>
+
+          {error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-firstName">First Name</Label>
+              <Input
+                id="edit-firstName"
+                placeholder="John"
+                {...register("firstName", {
+                  required: "First name is required",
+                  minLength: { value: 1, message: "First name is required" },
+                })}
+              />
+              {errors.firstName && (
+                <p className="text-sm text-destructive">
+                  {errors.firstName.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-lastName">Last Name</Label>
+              <Input
+                id="edit-lastName"
+                placeholder="Doe"
+                {...register("lastName", {
+                  required: "Last name is required",
+                  minLength: { value: 1, message: "Last name is required" },
+                })}
+              />
+              {errors.lastName && (
+                <p className="text-sm text-destructive">
+                  {errors.lastName.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="john@company.com"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address",
+                  },
+                })}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-password">Password (Optional)</Label>
+              <Input
+                id="edit-password"
+                type="password"
+                placeholder="Leave blank to keep current password"
+                {...register("password")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Leave blank to keep the current password
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Role</Label>
+              <input
+                type="hidden"
+                {...register("role", { required: "Role is required" })}
+              />
+              <Select onValueChange={(value) => setValue("role", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.role && (
+                <p className="text-sm text-destructive">Role is required</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-managerId">Manager (Optional)</Label>
+              <input type="hidden" {...register("managerId")} />
+              <Select onValueChange={(value) => setValue("managerId", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managers.map((manager) => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      {`${manager.firstName} ${manager.lastName}`} (
+                      {manager.role})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-isActive">Status</Label>
+              <input type="hidden" {...register("isActive")} />
+              <Select
+                onValueChange={(value) =>
+                  setValue("isActive", value === "true")
+                }
+                value={watch("isActive") ? "true" : "false"}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Active</SelectItem>
+                  <SelectItem value="false">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Updating...
+                </>
+              ) : (
+                "Update User"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowEditUserModal(false);
+                setSelectedUser(null);
                 reset();
                 setError(null);
               }}
