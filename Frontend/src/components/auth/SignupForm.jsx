@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { currencyAPI } from "@/services/api";
+import { toast } from "sonner";
 
 // Default countries list - will be populated from API
 const DEFAULT_COUNTRIES = [
@@ -95,9 +96,11 @@ export function SignupForm({ onSuccess }) {
 
       await signup(signupData);
       onSuccess?.();
+      toast.success("Account created successfully!");
     } catch (error) {
       console.error("Signup failed:", error);
       setError(error.message || "Signup failed. Please try again.");
+      toast.error(error.message || "Signup failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
