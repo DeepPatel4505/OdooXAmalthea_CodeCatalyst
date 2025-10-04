@@ -12,7 +12,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ["@reduxjs/toolkit"],
+    include: ["@reduxjs/toolkit"],
   },
   build: {
     commonjsOptions: {
