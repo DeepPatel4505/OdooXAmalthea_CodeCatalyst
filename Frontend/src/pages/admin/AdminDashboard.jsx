@@ -210,6 +210,67 @@ export function AdminDashboard() {
     }
   };
 
+  const handleExportExpenses = async () => {
+    try {
+      // Create CSV content
+      const headers = [
+        "Employee",
+        "Description",
+        "Date",
+        "Category",
+        "Amount",
+        "Currency",
+        "Status",
+        "Current Approver",
+        "Submitted Date",
+      ];
+
+      const csvContent = [
+        headers.join(","),
+        ...filteredExpenses.map((expense) =>
+          [
+            `"${`${expense.employee?.firstName || ""} ${
+              expense.employee?.lastName || ""
+            }`.trim()}"`,
+            `"${expense.description.replace(/"/g, '""')}"`, // Escape quotes
+            `"${new Date(expense.expenseDate).toLocaleDateString()}"`,
+            `"${expense.category}"`,
+            expense.amount,
+            expense.currency,
+            expense.status,
+            `"${
+              expense.currentApprover
+                ? `${expense.currentApprover?.firstName || ""} ${
+                    expense.currentApprover?.lastName || ""
+                  }`.trim()
+                : "N/A"
+            }"`,
+            `"${new Date(expense.createdAt).toLocaleDateString()}"`,
+          ].join(",")
+        ),
+      ].join("\n");
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `expenses_export_${new Date().toISOString().split("T")[0]}.csv`
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      alert("Expenses exported successfully!");
+    } catch (error) {
+      console.error("Export failed:", error);
+      alert("Failed to export expenses. Please try again.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -353,7 +414,11 @@ export function AdminDashboard() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                className="flex items-center gap-2"
+                onClick={handleExportExpenses}
+              >
                 <Download className="h-4 w-4" />
                 Export
               </Button>

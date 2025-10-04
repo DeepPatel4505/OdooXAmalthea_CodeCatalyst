@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, CheckCircle, Save } from "lucide-react";
+import { Upload, FileText, CheckCircle, Save, Loader2 } from "lucide-react";
 import { expenseAPI } from "@/services/api";
 
 const EXPENSE_CATEGORIES = [
@@ -93,7 +93,7 @@ export function ExpenseSubmission() {
       try {
         const response = await expenseAPI.getExpense(id);
         const expense = response.data.expense;
-        
+
         // Populate form with expense data
         reset({
           amount: parseFloat(expense.amount),
@@ -114,10 +114,14 @@ export function ExpenseSubmission() {
     fetchExpense();
   }, [id, isEditMode, reset, navigate]);
 
-  // 🟢 Step 2: Handle currency conversion (same as before)
+  // 🟢 Step 2: Handle currency conversion with real API
   useEffect(() => {
     const convertCurrency = async () => {
-      if (!amount || !selectedCurrency || selectedCurrency === COMPANY_CURRENCY) {
+      if (
+        !amount ||
+        !selectedCurrency ||
+        selectedCurrency === COMPANY_CURRENCY
+      ) {
         setConvertedAmount(null);
         setExchangeRate(null);
         return;
@@ -125,6 +129,23 @@ export function ExpenseSubmission() {
 
       setIsConverting(true);
       try {
+        // Try real currency API first
+        const { currencyAPI } = await import("@/services/api");
+        const response = await currencyAPI.convertCurrency(
+          parseFloat(amount),
+          selectedCurrency,
+          COMPANY_CURRENCY
+        );
+
+        if (response.success && response.data) {
+          setExchangeRate(response.data.rate);
+          setConvertedAmount(response.data.convertedAmount);
+        } else {
+          throw new Error("Currency conversion failed");
+        }
+      } catch (error) {
+        console.error("Currency conversion failed, using mock rates:", error);
+        // Fallback to mock rates for development
         const mockRates = {
           EUR: 0.85,
           GBP: 0.73,
@@ -139,8 +160,6 @@ export function ExpenseSubmission() {
         const rate = mockRates[selectedCurrency] || 1;
         setExchangeRate(rate);
         setConvertedAmount(parseFloat(amount) * rate);
-      } catch (err) {
-        console.error("Conversion failed", err);
       } finally {
         setIsConverting(false);
       }
@@ -149,72 +168,149 @@ export function ExpenseSubmission() {
     convertCurrency();
   }, [amount, selectedCurrency]);
 
-  // 🟢 Step 3: Handle OCR upload (same)
+  // 🟢 Step 3: Handle OCR upload with real API integration
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Validate file type
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "application/pdf",
+    ];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Please upload a valid image (JPEG, PNG) or PDF file");
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      alert("File size must be less than 10MB");
+      return;
+    }
+
     setUploadedFile(file);
     setIsProcessingOcr(true);
 
-    setTimeout(() => {
+    try {
+      // Use real OCR API
+      const { ocrAPI } = await import("@/services/api");
+      const response = await ocrAPI.processReceipt(file);
+
+      if (response.success && response.data) {
+        const ocrData = response.data;
+        setOcrData(ocrData);
+
+        // Auto-populate form with OCR data
+        if (ocrData.amount) setValue("amount", parseFloat(ocrData.amount));
+        if (ocrData.date) setValue("date", ocrData.date);
+        if (ocrData.merchant) setValue("description", ocrData.merchant);
+        if (ocrData.category) setValue("category", ocrData.category);
+      } else {
+        throw new Error(response.message || "OCR processing failed");
+      }
+    } catch (error) {
+      console.error("OCR processing failed:", error);
+      // Fallback to mock data for development
       const mockOcrData = {
         amount: "125.50",
-        date: "2024-01-15",
-        merchant: "Restaurant ABC",
+        date: new Date().toISOString().split("T")[0],
+        merchant: "Receipt OCR",
         category: "Meals & Entertainment",
       };
       setOcrData(mockOcrData);
-      setIsProcessingOcr(false);
-
       setValue("amount", mockOcrData.amount);
       setValue("date", mockOcrData.date);
       setValue("description", mockOcrData.merchant);
       setValue("category", mockOcrData.category);
-    }, 2000);
+
+      // Show user-friendly message
+      alert("OCR processing failed. Using mock data for demonstration.");
+    } finally {
+      setIsProcessingOcr(false);
+    }
   };
 
-  // 🟢 Step 4: Submit (create or update)
+  // 🟢 Step 4: Submit (create or update) with enhanced validation
   const onSubmit = async (data, status = "PENDING") => {
     setIsSubmitting(true);
     try {
+      // Enhanced validation
+      if (!data.amount || data.amount <= 0) {
+        throw new Error("Please enter a valid amount greater than 0");
+      }
+      if (!data.currency) {
+        throw new Error("Please select a currency");
+      }
+      if (!data.category) {
+        throw new Error("Please select a category");
+      }
+      if (!data.description || data.description.trim().length < 3) {
+        throw new Error("Please enter a description (at least 3 characters)");
+      }
+      if (!data.date) {
+        throw new Error("Please select a date");
+      }
+
+      // Validate date is not in the future
+      const expenseDate = new Date(data.date);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+      if (expenseDate > today) {
+        throw new Error("Expense date cannot be in the future");
+      }
+
       // Create a clean, serializable object
       const expenseData = {
         amount: parseFloat(data.amount),
         currency: data.currency,
         category: data.category,
-        description: data.description,
-        expenseDate: new Date(data.date).toISOString(), // Convert to ISO8601 format
+        description: data.description.trim(),
+        expenseDate: expenseDate.toISOString(),
         receiptUrl: uploadedFile ? uploadedFile.name : null,
-        ocrData: ocrData ? {
-          amount: ocrData.amount,
-          date: ocrData.date,
-          merchant: ocrData.merchant,
-          category: ocrData.category
-        } : null,
+        ocrData: ocrData
+          ? {
+              amount: ocrData.amount,
+              date: ocrData.date,
+              merchant: ocrData.merchant,
+              category: ocrData.category,
+            }
+          : null,
         status: status,
       };
-
-      // Validate required fields
-      if (!expenseData.amount || !expenseData.currency || !expenseData.category || !expenseData.description || !expenseData.expenseDate) {
-        throw new Error("Please fill in all required fields");
-      }
 
       console.log("Submitting expense data:", expenseData);
 
       if (isEditMode) {
         // Update existing expense
         await expenseAPI.updateExpense(id, expenseData);
-        } else {
-          // Create new expense
-          await expenseAPI.createExpense(expenseData);
-        }
+      } else {
+        // Create new expense
+        await expenseAPI.createExpense(expenseData);
+      }
+
+      // Show success message
+      const action = isEditMode ? "updated" : "submitted";
+      const statusText =
+        status === "DRAFT" ? "saved as draft" : "submitted for approval";
+      alert(
+        `Expense ${action} successfully! ${
+          status === "PENDING"
+            ? "It has been submitted for approval."
+            : "It has been saved as draft."
+        }`
+      );
 
       navigate("/employee/expenses");
     } catch (error) {
       console.error("Error saving expense:", error);
       // Show user-friendly error message
-      alert(`Failed to save expense: ${error.message || 'Unknown error occurred'}`);
+      alert(
+        `Failed to save expense: ${error.message || "Unknown error occurred"}`
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -224,13 +320,13 @@ export function ExpenseSubmission() {
   const handleSaveAsDraft = async (data) => {
     // Determine the appropriate status based on current expense status
     let targetStatus = "DRAFT";
-    
+
     if (isEditMode) {
       // If editing an existing expense, keep it as draft if it was draft,
       // otherwise set to pending (submitted) for approval
       targetStatus = "DRAFT";
     }
-    
+
     await onSubmit(data, targetStatus);
   };
 
@@ -418,7 +514,9 @@ export function ExpenseSubmission() {
               <Textarea
                 id="description"
                 placeholder="Describe the expense..."
-                {...register("description", { required: "Description is required" })}
+                {...register("description", {
+                  required: "Description is required",
+                })}
               />
             </div>
 
@@ -435,32 +533,40 @@ export function ExpenseSubmission() {
             {/* Submit Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <div className="flex gap-2">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting
-                    ? isEditMode
-                      ? "Updating..."
-                      : "Submitting..."
-                    : isEditMode
-                    ? "Update & Submit"
-                    : "Submit Expense"}
+                <Button type="submit" disabled={isSubmitting || isConverting}>
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {isEditMode ? "Updating..." : "Submitting..."}
+                    </div>
+                  ) : isEditMode ? (
+                    "Update & Submit"
+                  ) : (
+                    "Submit Expense"
+                  )}
                 </Button>
-                
+
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleSubmit(handleSaveAsDraft)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isConverting}
                   className="flex items-center gap-2"
                 >
-                  <Save className="h-4 w-4" />
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   {isEditMode ? "Update as Draft" : "Save as Draft"}
                 </Button>
               </div>
-              
+
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/employee/expenses")}
+                disabled={isSubmitting}
                 className="sm:ml-auto"
               >
                 Cancel

@@ -69,7 +69,18 @@ This task list outlines the complete integration of the React frontend with the 
   - [ ] Implement user deletion
   - [ ] Add manager assignment dropdown
 
-### 2.3 Company Settings Integration
+### 2.3 User Approval Rule Assignment
+
+- [ ] **Implement Approval Rule Assignment for Users**
+  - [ ] Add approval rule assignment section to user management
+  - [ ] Create interface to assign multiple approvers to users
+  - [ ] Implement approval mode selection (Sequential/Parallel)
+  - [ ] Add threshold configuration for parallel approval
+  - [ ] Show current approval rules for each user
+  - [ ] Allow bulk assignment of approval rules to multiple users
+  - [ ] Add approval rule templates for quick assignment
+
+### 2.4 Company Settings Integration
 
 - [ ] **Connect CompanySettings to backend**
   - [ ] Fetch current company settings
@@ -135,6 +146,105 @@ This task list outlines the complete integration of the React frontend with the 
   - [ ] Add rule editing
   - [ ] Implement rule activation/deactivation
   - [ ] Add approval step management
+
+### 4.4 Advanced Approval Rule Configuration
+
+- [ ] **Implement Multiple Manager Assignment**
+
+  - [ ] Allow Admin to select multiple approvers for a user/group
+  - [ ] Create multi-select dropdown for manager selection
+  - [ ] Display assigned approvers list with remove option
+  - [ ] Validate minimum one approver requirement
+
+- [ ] **Sequential Approval Flow (useSequence = true)**
+
+  - [ ] Implement step-by-step approval process
+  - [ ] Send approval request to first manager only
+  - [ ] Auto-forward to next manager upon approval
+  - [ ] Stop workflow immediately on any rejection
+  - [ ] Show current approval step in UI
+  - [ ] Display approval chain progress
+
+- [ ] **Parallel Approval with Threshold (useSequence = false)**
+
+  - [ ] Send approval request to all managers simultaneously
+  - [ ] Implement threshold percentage configuration (0-100%)
+  - [ ] Track approval count vs total approvers
+  - [ ] Auto-approve when threshold is met
+  - [ ] Auto-reject when threshold cannot be met
+  - [ ] Show real-time approval progress
+
+- [ ] **Approval Rule UI Components**
+
+  - [ ] Create approval mode toggle (Sequential/Parallel)
+  - [ ] Add threshold slider for parallel mode
+  - [ ] Implement approver selection interface
+  - [ ] Add approval flow visualization
+  - [ ] Create rule preview before saving
+
+- [ ] **Database Schema Implementation**
+
+  - [ ] Update ApprovalRule model with new fields:
+    - `approvers: string[]` (array of manager IDs)
+    - `useSequence: boolean` (sequential vs parallel)
+    - `thresholdPercent: number | null` (for parallel mode)
+  - [ ] Add validation for threshold when useSequence = false
+  - [ ] Ensure approvers array is not empty
+
+- [ ] **Workflow Engine Logic**
+
+  - [ ] Implement sequential workflow handler
+  - [ ] Implement parallel workflow handler
+  - [ ] Add threshold calculation logic
+  - [ ] Handle approval state transitions
+  - [ ] Manage rejection scenarios
+  - [ ] Update expense status based on workflow result
+
+- [ ] **Example Scenarios Implementation**
+  - [ ] **Case 1: Sequential Flow**
+    - User John → Managers = [Alice, Bob, Carol], useSequence = true
+    - Flow: John submits → Alice approves → Bob approves → Carol approves → ✅ approved
+    - If Bob rejects → ❌ rejected immediately
+  - [ ] **Case 2: Parallel with Threshold**
+    - User Sarah → Managers = [Alice, Bob, Carol], useSequence = false, threshold = 67%
+    - Flow: Sarah submits → All 3 notified at once
+    - Alice approves, Bob approves, Carol rejects → 2/3 = 67% → ✅ approved
+    - Alice approves, Bob rejects, Carol rejects → 1/3 = 33% → ❌ rejected
+
+### 4.5 Approval Workflow Engine Implementation
+
+- [ ] **Sequential Workflow Handler**
+
+  - [ ] Implement step-by-step approval logic
+  - [ ] Track current approval step in database
+  - [ ] Auto-advance to next approver on approval
+  - [ ] Stop workflow on any rejection
+  - [ ] Send notifications to next approver
+  - [ ] Update expense status based on final result
+
+- [ ] **Parallel Workflow Handler**
+
+  - [ ] Send approval requests to all approvers simultaneously
+  - [ ] Track individual approval responses
+  - [ ] Calculate approval percentage in real-time
+  - [ ] Auto-approve when threshold is reached
+  - [ ] Auto-reject when threshold cannot be met
+  - [ ] Handle edge cases (all approve/reject)
+
+- [ ] **Workflow State Management**
+
+  - [ ] Create workflow state tracking system
+  - [ ] Implement state transitions (pending → approved/rejected)
+  - [ ] Add workflow history logging
+  - [ ] Handle workflow timeouts
+  - [ ] Implement workflow cancellation
+
+- [ ] **Notification System for Approvals**
+  - [ ] Send email notifications to approvers
+  - [ ] Add in-app notification system
+  - [ ] Notify employee of approval status changes
+  - [ ] Send reminders for pending approvals
+  - [ ] Add notification preferences
 
 ---
 
@@ -260,6 +370,83 @@ This task list outlines the complete integration of the React frontend with the 
   - [ ] Token management working
   - [ ] Request/response interceptors
 
+### Approval Rule API Endpoints
+
+- [ ] **Create Approval Rule Endpoints**
+
+  - [ ] `POST /api/approval-rules` - Create new approval rule
+  - [ ] `GET /api/approval-rules` - Get all approval rules
+  - [ ] `GET /api/approval-rules/:id` - Get specific approval rule
+  - [ ] `PUT /api/approval-rules/:id` - Update approval rule
+  - [ ] `DELETE /api/approval-rules/:id` - Delete approval rule
+  - [ ] `POST /api/approval-rules/assign` - Assign rule to user(s)
+  - [ ] `GET /api/approval-rules/user/:userId` - Get rules for specific user
+
+- [ ] **Workflow Management Endpoints**
+  - [ ] `POST /api/approvals/:id/approve` - Approve expense
+  - [ ] `POST /api/approvals/:id/reject` - Reject expense
+  - [ ] `GET /api/approvals/pending` - Get pending approvals for manager
+  - [ ] `GET /api/approvals/history` - Get approval history
+  - [ ] `POST /api/approvals/:id/comment` - Add comment to approval
+
+### Database Schema Updates
+
+- [ ] **Update ApprovalRule Model**
+
+  - [ ] Add `approvers: string[]` field (array of manager IDs)
+  - [ ] Add `useSequence: boolean` field (sequential vs parallel)
+  - [ ] Add `thresholdPercent: number | null` field (for parallel mode)
+  - [ ] Add `isActive: boolean` field (rule activation status)
+  - [ ] Add `createdAt` and `updatedAt` timestamps
+
+- [ ] **Update Approval Model**
+
+  - [ ] Add `currentStep: number` field (for sequential workflow)
+  - [ ] Add `approvalCount: number` field (for parallel workflow)
+  - [ ] Add `workflowType: string` field (sequential/parallel)
+  - [ ] Add `thresholdPercent: number` field (for parallel workflow)
+  - [ ] Add `approvalHistory: JSON` field (track all approvals)
+
+- [ ] **Create Migration Scripts**
+  - [ ] Create migration for new ApprovalRule fields
+  - [ ] Create migration for new Approval fields
+  - [ ] Add indexes for performance optimization
+  - [ ] Add foreign key constraints
+
+### Frontend Components for Approval Rules
+
+- [ ] **ApprovalRuleForm Component**
+
+  - [ ] Create form for creating/editing approval rules
+  - [ ] Add multi-select dropdown for approvers
+  - [ ] Implement approval mode toggle (Sequential/Parallel)
+  - [ ] Add threshold slider for parallel mode
+  - [ ] Include form validation
+  - [ ] Add preview of approval flow
+
+- [ ] **ApprovalRuleList Component**
+
+  - [ ] Display list of existing approval rules
+  - [ ] Add search and filter functionality
+  - [ ] Include edit/delete actions
+  - [ ] Show rule status (active/inactive)
+  - [ ] Display assigned users count
+
+- [ ] **ApprovalFlowVisualization Component**
+
+  - [ ] Visual representation of approval flow
+  - [ ] Show sequential vs parallel flow
+  - [ ] Display approvers in order
+  - [ ] Highlight current step (for sequential)
+  - [ ] Show threshold percentage (for parallel)
+
+- [ ] **UserApprovalRuleAssignment Component**
+  - [ ] Interface for assigning rules to users
+  - [ ] Bulk assignment functionality
+  - [ ] Show current assignments
+  - [ ] Allow rule template selection
+  - [ ] Preview assignment before saving
+
 ### State Management
 
 - [ ] **Implement proper state management**
@@ -267,6 +454,8 @@ This task list outlines the complete integration of the React frontend with the 
   - [ ] Expense data caching
   - [ ] Approval workflow state
   - [ ] Company settings state
+  - [ ] Approval rule state management
+  - [ ] Workflow progress tracking
 
 ### Security Considerations
 
@@ -296,6 +485,39 @@ This task list outlines the complete integration of the React frontend with the 
   - [ ] Employee expense submission
   - [ ] Multi-currency testing
   - [ ] Approval rule testing
+
+### Approval Rule Testing Scenarios
+
+- [ ] **Sequential Approval Testing**
+
+  - [ ] Test 3-step sequential approval (Alice → Bob → Carol)
+  - [ ] Test rejection at step 2 (Alice → Bob rejects)
+  - [ ] Test approval completion (Alice → Bob → Carol approves)
+  - [ ] Test timeout scenarios
+  - [ ] Test workflow cancellation
+
+- [ ] **Parallel Approval Testing**
+
+  - [ ] Test 3-manager parallel with 67% threshold
+  - [ ] Test 2/3 approval (meets threshold)
+  - [ ] Test 1/3 approval (fails threshold)
+  - [ ] Test all approve scenario
+  - [ ] Test all reject scenario
+
+- [ ] **Edge Case Testing**
+
+  - [ ] Test single approver scenarios
+  - [ ] Test 100% threshold (all must approve)
+  - [ ] Test 0% threshold (any approval works)
+  - [ ] Test approver unavailable scenarios
+  - [ ] Test rule changes during active workflow
+
+- [ ] **UI/UX Testing**
+  - [ ] Test approval rule creation form
+  - [ ] Test multi-select approver dropdown
+  - [ ] Test threshold slider functionality
+  - [ ] Test approval flow visualization
+  - [ ] Test user assignment interface
 
 ---
 

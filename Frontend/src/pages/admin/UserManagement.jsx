@@ -28,7 +28,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
-import { Plus, Search, Edit, Trash2, UserPlus, Loader2, Mail } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  UserPlus,
+  Loader2,
+  Mail,
+} from "lucide-react";
 import { userAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -234,12 +242,10 @@ export function UserManagement() {
   const handleSendPassword = async (userId) => {
     try {
       const response = await userAPI.sendPassword(userId);
-    }
-    catch (error) {
+    } catch (error) {
       console.error("Failed to send password:", error);
       setError(error.message || "Failed to send password");
-    }
-    finally {
+    } finally {
       setIsSendingPassword(false);
     }
   };
@@ -370,9 +376,8 @@ export function UserManagement() {
                           className="bg-blue-100 text-blue-500 hover:text-blue-600 hover:bg-blue-200 cursor-pointer"
                         >
                           <Mail className="h-4 w-4" /> Send Password
-                        </Button>                       
-            
-                        {/* <Button
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditUser(user)}
@@ -386,7 +391,7 @@ export function UserManagement() {
                           onClick={() => handleDeleteUser(user.id)}
                         >
                           <Trash2 className="h-4 w-4" />
-                        </Button> */}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

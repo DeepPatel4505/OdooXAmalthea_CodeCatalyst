@@ -1,82 +1,164 @@
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Stepper } from '@/components/ui/stepper'
-import { Modal } from '@/components/ui/modal'
-import { CheckCircle, XCircle, Clock, User, FileText } from 'lucide-react'
-
-// Mock data
-const mockExpense = {
-  id: '1',
-  employee: 'John Doe',
-  amount: 125.50,
-  category: 'Meals',
-  description: 'Client dinner at Restaurant ABC',
-  date: '2024-01-15',
-  currency: 'USD',
-  receipt: 'receipt_123.pdf',
-  submittedAt: '2024-01-16T09:30:00Z'
-}
-
-const approvalSteps = [
-  {
-    id: 'manager',
-    title: 'Manager Review',
-    description: 'Direct manager approval',
-    status: 'current'
-  },
-  {
-    id: 'finance',
-    title: 'Finance Review',
-    description: 'Finance team verification',
-    status: 'upcoming'
-  },
-  {
-    id: 'director',
-    title: 'Director Approval',
-    description: 'Final approval for amounts > $100',
-    status: 'upcoming'
-  }
-]
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Stepper } from "@/components/ui/stepper";
+import { Modal } from "@/components/ui/modal";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  User,
+  FileText,
+  Loader2,
+} from "lucide-react";
+import { expenseAPI, approvalAPI } from "@/services/api";
 
 export function ApprovalWorkflow() {
-  const [showApprovalModal, setShowApprovalModal] = useState(false)
-  const [showRejectionModal, setShowRejectionModal] = useState(false)
-  const [approvalComment, setApprovalComment] = useState('')
-  const [rejectionComment, setRejectionComment] = useState('')
-  const [isProcessing, setIsProcessing] = useState(false)
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [expense, setExpense] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [approvalComment, setApprovalComment] = useState("");
+  const [rejectionComment, setRejectionComment] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Fetch expense details
+  useEffect(() => {
+    const fetchExpense = async () => {
+      if (!id) return;
+
+      try {
+        setIsLoading(true);
+        const response = await expenseAPI.getExpense(id);
+        if (response.success) {
+          setExpense(response.data.expense);
+        } else {
+          navigate("/manager");
+        }
+      } catch (error) {
+        console.error("Failed to fetch expense:", error);
+        navigate("/manager");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExpense();
+  }, [id, navigate]);
 
   const handleApprove = async () => {
-    setIsProcessing(true)
+    if (!expense) return;
+
+    setIsProcessing(true);
     try {
-      // TODO: Connect to API
-      console.log('Approving expense:', mockExpense.id, approvalComment)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setShowApprovalModal(false)
-      setApprovalComment('')
+      const response = await approvalAPI.makeDecision(expense.id, {
+        decision: "approve",
+        comment: approvalComment,
+      });
+
+      if (response.success) {
+        setShowApprovalModal(false);
+        setApprovalComment("");
+        // Navigate back to manager dashboard
+        navigate("/manager");
+      } else {
+        throw new Error(response.message || "Approval failed");
+      }
     } catch (error) {
-      console.error('Approval failed:', error)
+      console.error("Approval failed:", error);
+      alert("Failed to approve expense. Please try again.");
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
-  }
+  };
 
   const handleReject = async () => {
-    setIsProcessing(true)
+    if (!expense) return;
+
+    setIsProcessing(true);
     try {
-      // TODO: Connect to API
-      console.log('Rejecting expense:', mockExpense.id, rejectionComment)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setShowRejectionModal(false)
-      setRejectionComment('')
+      const response = await approvalAPI.makeDecision(expense.id, {
+        decision: "reject",
+        comment: rejectionComment,
+      });
+
+      if (response.success) {
+        setShowRejectionModal(false);
+        setRejectionComment("");
+        // Navigate back to manager dashboard
+        navigate("/manager");
+      } else {
+        throw new Error(response.message || "Rejection failed");
+      }
     } catch (error) {
-      console.error('Rejection failed:', error)
+      console.error("Rejection failed:", error);
+      alert("Failed to reject expense. Please try again.");
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-muted-foreground">Loading expense details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!expense) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Expense not found</p>
+        <Button onClick={() => navigate("/manager")} className="mt-4">
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  // Generate approval steps based on expense data
+  const approvalSteps = [
+    {
+      id: "manager",
+      title: "Manager Review",
+      description: "Direct manager approval",
+      status: "current",
+    },
+  ];
+
+  // Add additional steps based on amount or other criteria
+  if (parseFloat(expense.amount) > 100) {
+    approvalSteps.push({
+      id: "finance",
+      title: "Finance Review",
+      description: "Finance team verification",
+      status: "upcoming",
+    });
+  }
+
+  if (parseFloat(expense.amount) > 500) {
+    approvalSteps.push({
+      id: "director",
+      title: "Director Approval",
+      description: "Final approval for high amounts",
+      status: "upcoming",
+    });
   }
 
   return (
@@ -97,11 +179,7 @@ export function ApprovalWorkflow() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Stepper 
-            steps={approvalSteps} 
-            currentStep={0}
-            className="mb-6"
-          />
+          <Stepper steps={approvalSteps} currentStep={0} className="mb-6" />
         </CardContent>
       </Card>
 
@@ -117,27 +195,36 @@ export function ApprovalWorkflow() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">{mockExpense.employee}</span>
+              <span className="font-medium">
+                {expense.employee?.firstName} {expense.employee?.lastName}
+              </span>
             </div>
-            
+
             <div className="space-y-2">
               <Label className="text-sm font-medium">Amount</Label>
-              <p className="text-2xl font-bold">${mockExpense.amount}</p>
+              <p className="text-2xl font-bold">
+                {parseFloat(expense.amount).toLocaleString(undefined, {
+                  style: "currency",
+                  currency: expense.currency || "USD",
+                })}
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Category</Label>
-              <Badge variant="outline">{mockExpense.category}</Badge>
+              <Badge variant="outline">{expense.category}</Badge>
             </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Description</Label>
-              <p className="text-sm">{mockExpense.description}</p>
+              <p className="text-sm">{expense.description}</p>
             </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-medium">Date</Label>
-              <p className="text-sm">{mockExpense.date}</p>
+              <p className="text-sm">
+                {new Date(expense.expenseDate).toLocaleDateString()}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -145,7 +232,7 @@ export function ApprovalWorkflow() {
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 <Button variant="link" className="p-0 h-auto">
-                  {mockExpense.receipt}
+                  {expense.receiptUrl || "No receipt uploaded"}
                 </Button>
               </div>
             </div>
@@ -171,7 +258,7 @@ export function ApprovalWorkflow() {
             </div>
 
             <div className="flex gap-2">
-              <Button 
+              <Button
                 onClick={() => setShowApprovalModal(true)}
                 className="flex-1"
                 disabled={isProcessing}
@@ -179,7 +266,7 @@ export function ApprovalWorkflow() {
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Approve
               </Button>
-              <Button 
+              <Button
                 variant="destructive"
                 onClick={() => setShowRejectionModal(true)}
                 className="flex-1"
@@ -195,7 +282,9 @@ export function ApprovalWorkflow() {
               <ul className="text-sm text-muted-foreground space-y-1">
                 <li>• Amounts under $50: Manager approval only</li>
                 <li>• Amounts $50-$100: Manager + Finance approval</li>
-                <li>• Amounts over $100: Manager + Finance + Director approval</li>
+                <li>
+                  • Amounts over $100: Manager + Finance + Director approval
+                </li>
                 <li>• Travel expenses require additional documentation</li>
               </ul>
             </div>
@@ -212,20 +301,24 @@ export function ApprovalWorkflow() {
         <div className="space-y-4">
           <p>Are you sure you want to approve this expense?</p>
           <div className="bg-muted p-3 rounded-lg">
-            <p className="font-medium">{mockExpense.description}</p>
+            <p className="font-medium">{expense.description}</p>
             <p className="text-sm text-muted-foreground">
-              ${mockExpense.amount} • {mockExpense.employee}
+              {parseFloat(expense.amount).toLocaleString(undefined, {
+                style: "currency",
+                currency: expense.currency || "USD",
+              })}{" "}
+              • {expense.employee?.firstName} {expense.employee?.lastName}
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               onClick={handleApprove}
               disabled={isProcessing}
               className="flex-1"
             >
-              {isProcessing ? 'Approving...' : 'Yes, Approve'}
+              {isProcessing ? "Approving..." : "Yes, Approve"}
             </Button>
-            <Button 
+            <Button
               variant="outline"
               onClick={() => setShowApprovalModal(false)}
               disabled={isProcessing}
@@ -246,13 +339,19 @@ export function ApprovalWorkflow() {
         <div className="space-y-4">
           <p>Are you sure you want to reject this expense?</p>
           <div className="bg-muted p-3 rounded-lg">
-            <p className="font-medium">{mockExpense.description}</p>
+            <p className="font-medium">{expense.description}</p>
             <p className="text-sm text-muted-foreground">
-              ${mockExpense.amount} • {mockExpense.employee}
+              {parseFloat(expense.amount).toLocaleString(undefined, {
+                style: "currency",
+                currency: expense.currency || "USD",
+              })}{" "}
+              • {expense.employee?.firstName} {expense.employee?.lastName}
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="rejection-reason">Reason for rejection (Required)</Label>
+            <Label htmlFor="rejection-reason">
+              Reason for rejection (Required)
+            </Label>
             <Textarea
               id="rejection-reason"
               placeholder="Please provide a reason for rejection..."
@@ -261,15 +360,15 @@ export function ApprovalWorkflow() {
             />
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               onClick={handleReject}
               disabled={isProcessing || !rejectionComment.trim()}
               variant="destructive"
               className="flex-1"
             >
-              {isProcessing ? 'Rejecting...' : 'Yes, Reject'}
+              {isProcessing ? "Rejecting..." : "Yes, Reject"}
             </Button>
-            <Button 
+            <Button
               variant="outline"
               onClick={() => setShowRejectionModal(false)}
               disabled={isProcessing}
@@ -281,5 +380,5 @@ export function ApprovalWorkflow() {
         </div>
       </Modal>
     </div>
-  )
+  );
 }

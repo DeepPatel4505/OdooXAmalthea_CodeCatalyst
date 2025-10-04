@@ -1,75 +1,163 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Receipt, Plus, Clock, CheckCircle, XCircle } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Receipt,
+  Plus,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { expenseAPI } from "@/services/api";
 
-// Mock data
-const mockStats = {
-  totalExpenses: 12,
-  pendingExpenses: 3,
-  approvedExpenses: 8,
-  rejectedExpenses: 1,
-  totalAmount: 2450.75
-}
-
-const mockRecentExpenses = [
-  {
-    id: '1',
-    amount: 125.50,
-    category: 'Meals',
-    description: 'Client dinner',
-    date: '2024-01-15',
-    status: 'approved',
-    currency: 'USD'
-  },
-  {
-    id: '2',
-    amount: 89.99,
-    category: 'Transportation',
-    description: 'Taxi to airport',
-    date: '2024-01-14',
-    status: 'pending',
-    currency: 'USD'
-  },
-  {
-    id: '3',
-    amount: 45.00,
-    category: 'Office Supplies',
-    description: 'Stationery',
-    date: '2024-01-13',
-    status: 'rejected',
-    currency: 'USD'
+// Status mapping from backend to frontend
+const mapExpenseStatus = (status) => {
+  switch (status) {
+    case "APPROVED":
+      return "approved";
+    case "PENDING":
+      return "submitted";
+    case "REJECTED":
+      return "rejected";
+    case "DRAFT":
+      return "draft";
+    default:
+      return status.toLowerCase();
   }
-]
+};
 
 const getStatusIcon = (status) => {
-  switch (status) {
-    case 'approved':
-      return <CheckCircle className="h-4 w-4 text-green-500" />
-    case 'rejected':
-      return <XCircle className="h-4 w-4 text-red-500" />
-    case 'pending':
-      return <Clock className="h-4 w-4 text-yellow-500" />
+  const mappedStatus = mapExpenseStatus(status);
+  switch (mappedStatus) {
+    case "approved":
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    case "rejected":
+      return <XCircle className="h-4 w-4 text-red-500" />;
+    case "submitted":
+    case "pending":
+      return <Clock className="h-4 w-4 text-yellow-500" />;
+    case "draft":
+      return <Clock className="h-4 w-4 text-gray-500" />;
     default:
-      return <Clock className="h-4 w-4 text-gray-500" />
+      return <Clock className="h-4 w-4 text-gray-500" />;
   }
-}
+};
 
 const getStatusBadge = (status) => {
-  switch (status) {
-    case 'approved':
-      return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>
-    case 'rejected':
-      return <Badge variant="destructive">Rejected</Badge>
-    case 'pending':
-      return <Badge variant="secondary">Pending</Badge>
+  const mappedStatus = mapExpenseStatus(status);
+  switch (mappedStatus) {
+    case "approved":
+      return (
+        <Badge variant="default" className="bg-green-100 text-green-800">
+          Approved
+        </Badge>
+      );
+    case "rejected":
+      return <Badge variant="destructive">Rejected</Badge>;
+    case "submitted":
+    case "pending":
+      return <Badge variant="secondary">Submitted</Badge>;
+    case "draft":
+      return <Badge variant="outline">Draft</Badge>;
     default:
-      return <Badge variant="outline">Unknown</Badge>
+      return <Badge variant="outline">Unknown</Badge>;
   }
-}
+};
 
 export function EmployeeDashboard() {
+  const [stats, setStats] = useState({
+    totalExpenses: 0,
+    pendingExpenses: 0,
+    approvedExpenses: 0,
+    rejectedExpenses: 0,
+    totalAmount: 0,
+  });
+  const [recentExpenses, setRecentExpenses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setIsLoading(true);
+
+        // Fetch expenses and statistics
+        const [expensesResponse, statsResponse] = await Promise.all([
+          expenseAPI.getExpenses({
+            limit: 5,
+            sort: "createdAt",
+            order: "desc",
+          }),
+          expenseAPI.getStatistics("30"),
+        ]);
+
+        const expenses = expensesResponse.data.expenses || [];
+        const statsData = statsResponse.data || {};
+
+        // Calculate stats from expenses
+        const totalExpenses = expenses.length;
+        const pendingExpenses = expenses.filter(
+          (e) => mapExpenseStatus(e.status) === "submitted"
+        ).length;
+        const approvedExpenses = expenses.filter(
+          (e) => mapExpenseStatus(e.status) === "approved"
+        ).length;
+        const rejectedExpenses = expenses.filter(
+          (e) => mapExpenseStatus(e.status) === "rejected"
+        ).length;
+        const totalAmount = expenses.reduce(
+          (sum, expense) => sum + parseFloat(expense.amount || 0),
+          0
+        );
+
+        setStats({
+          totalExpenses,
+          pendingExpenses,
+          approvedExpenses,
+          rejectedExpenses,
+          totalAmount,
+        });
+
+        setRecentExpenses(expenses);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+        // Set default values on error
+        setStats({
+          totalExpenses: 0,
+          pendingExpenses: 0,
+          approvedExpenses: 0,
+          rejectedExpenses: 0,
+          totalAmount: 0,
+        });
+        setRecentExpenses([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -91,11 +179,13 @@ export function EmployeeDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Expenses
+            </CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockStats.totalExpenses}</div>
+            <div className="text-2xl font-bold">{stats.totalExpenses}</div>
             <p className="text-xs text-muted-foreground">
               All time submissions
             </p>
@@ -104,14 +194,14 @@ export function EmployeeDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">Submitted</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{mockStats.pendingExpenses}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting approval
-            </p>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.pendingExpenses}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting approval</p>
           </CardContent>
         </Card>
 
@@ -121,7 +211,9 @@ export function EmployeeDashboard() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{mockStats.approvedExpenses}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.approvedExpenses}
+            </div>
             <p className="text-xs text-muted-foreground">
               Successfully approved
             </p>
@@ -134,10 +226,10 @@ export function EmployeeDashboard() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${mockStats.totalAmount.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total submitted
-            </p>
+            <div className="text-2xl font-bold">
+              ${stats.totalAmount.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground">Total submitted</p>
           </CardContent>
         </Card>
       </div>
@@ -146,29 +238,46 @@ export function EmployeeDashboard() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Expenses</CardTitle>
-          <CardDescription>
-            Your latest expense submissions
-          </CardDescription>
+          <CardDescription>Your latest expense submissions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {mockRecentExpenses.map((expense) => (
-              <div key={expense.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  {getStatusIcon(expense.status)}
-                  <div>
-                    <p className="font-medium">{expense.description}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {expense.category} • {expense.date}
-                    </p>
+            {recentExpenses.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No expenses submitted yet</p>
+                <p className="text-sm">
+                  Start by submitting your first expense
+                </p>
+              </div>
+            ) : (
+              recentExpenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center gap-4">
+                    {getStatusIcon(expense.status)}
+                    <div>
+                      <p className="font-medium">{expense.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {expense.category} •{" "}
+                        {new Date(expense.expenseDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-semibold">
+                      {parseFloat(expense.amount).toLocaleString(undefined, {
+                        style: "currency",
+                        currency: expense.currency || "USD",
+                      })}
+                    </span>
+                    {getStatusBadge(expense.status)}
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold">${expense.amount.toFixed(2)}</span>
-                  {getStatusBadge(expense.status)}
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
           <div className="mt-4">
             <Link to="/employee/expenses">
@@ -180,5 +289,5 @@ export function EmployeeDashboard() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

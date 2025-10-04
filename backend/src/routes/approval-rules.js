@@ -11,18 +11,30 @@ router.use(authenticateToken);
 // Validation middleware
 const validateCreateRule = [
   body("name").trim().isLength({ min: 1 }),
-  body("isManagerApprover").optional().isBoolean(),
-  body("approvalType").isIn(["SEQUENTIAL", "PERCENTAGE", "SPECIFIC_APPROVER", "HYBRID"]),
-  body("percentageThreshold").optional().isInt({ min: 1, max: 100 }),
+  body("isManagerApprover").optional().toBoolean().isBoolean(),
+  body("approvalType").isIn([
+    "SEQUENTIAL",
+    "PERCENTAGE",
+    "SPECIFIC_APPROVER",
+    "HYBRID",
+  ]),
+  body("percentageThreshold")
+    .optional({ nullable: true })
+    .isInt({ min: 1, max: 100 }),
+  body("specificApproverId").optional({ nullable: true }).isUUID(),
 ];
 
 const validateUpdateRule = [
   body("name").optional().trim().isLength({ min: 1 }),
-  body("isManagerApprover").optional().isBoolean(),
-  body("approvalType").optional().isIn(["SEQUENTIAL", "PERCENTAGE", "SPECIFIC_APPROVER", "HYBRID"]),
-  body("percentageThreshold").optional().isInt({ min: 1, max: 100 }),
-  body("specificApproverId").optional().isUUID(),
-  body("isActive").optional().isBoolean(),
+  body("isManagerApprover").optional().toBoolean().isBoolean(),
+  body("approvalType")
+    .optional()
+    .isIn(["SEQUENTIAL", "PERCENTAGE", "SPECIFIC_APPROVER", "HYBRID"]),
+  body("percentageThreshold")
+    .optional({ nullable: true })
+    .isInt({ min: 1, max: 100 }),
+  body("specificApproverId").optional({ nullable: true }).isUUID(),
+  body("isActive").optional().toBoolean().isBoolean(),
 ];
 
 const validateCreateStep = [
@@ -387,149 +399,42 @@ router.delete("/:ruleId", requireAdmin, async (req, res) => {
 });
 
 // Add approval step
-router.post("/:ruleId/steps", requireAdmin, validateCreateStep, async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        error: true,
-        message: "Validation failed",
-        code: "VALIDATION_ERROR",
-        details: errors.array(),
-      });
-    }
+router.post(
+  "/:ruleId/steps",
+  requireAdmin,
+  validateCreateStep,
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: true,
+          message: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: errors.array(),
+        });
+      }
 
-    const { ruleId } = req.params;
-    const { stepNumber, approverRole, approverId } = req.body;
+      const { ruleId } = req.params;
+      const { stepNumber, approverRole, approverId } = req.body;
 
-    // Check if rule exists
-    const existingRule = await prisma.approvalRule.findFirst({
-      where: {
-        id: ruleId,
-        companyId: req.user.company_id,
-      },
-    });
-
-    if (!existingRule) {
-      return res.status(404).json({
-        error: true,
-        message: "Approval rule not found",
-        code: "APPROVAL_RULE_NOT_FOUND",
-      });
-    }
-
-    // Validate approver
-    const approver = await prisma.user.findFirst({
-      where: {
-        id: approverId,
-        companyId: req.user.company_id,
-        isActive: true,
-      },
-    });
-
-    if (!approver) {
-      return res.status(400).json({
-        error: true,
-        message: "Invalid approver selected",
-        code: "INVALID_APPROVER",
-      });
-    }
-
-    // Check if step number already exists
-    const existingStep = await prisma.approvalStep.findFirst({
-      where: {
-        approvalRuleId: ruleId,
-        stepNumber,
-      },
-    });
-
-    if (existingStep) {
-      return res.status(409).json({
-        error: true,
-        message: `Step ${stepNumber} already exists for this rule`,
-        code: "STEP_ALREADY_EXISTS",
-      });
-    }
-
-    // Create step
-    const step = await prisma.approvalStep.create({
-      data: {
-        stepNumber,
-        approverRole,
-        approverId,
-        approvalRuleId: ruleId,
-      },
-      include: {
-        approver: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
-          },
+      // Check if rule exists
+      const existingRule = await prisma.approvalRule.findFirst({
+        where: {
+          id: ruleId,
+          companyId: req.user.company_id,
         },
-      },
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Approval step created successfully",
-      data: { step },
-    });
-  } catch (error) {
-    console.error("Create approval step error:", error);
-    res.status(500).json({
-      error: true,
-      message: "Failed to create approval step",
-      code: "CREATE_APPROVAL_STEP_ERROR",
-    });
-  }
-});
-
-// Update approval step
-router.put("/:ruleId/steps/:stepId", requireAdmin, [
-  body("stepNumber").optional().isInt({ min: 1 }),
-  body("approverRole").optional().trim().isLength({ min: 1 }),
-  body("approverId").optional().isUUID(),
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        error: true,
-        message: "Validation failed",
-        code: "VALIDATION_ERROR",
-        details: errors.array(),
       });
-    }
 
-    const { ruleId, stepId } = req.params;
-    const { stepNumber, approverRole, approverId } = req.body;
+      if (!existingRule) {
+        return res.status(404).json({
+          error: true,
+          message: "Approval rule not found",
+          code: "APPROVAL_RULE_NOT_FOUND",
+        });
+      }
 
-    // Check if step exists
-    const existingStep = await prisma.approvalStep.findFirst({
-      where: {
-        id: stepId,
-        approvalRuleId: ruleId,
-      },
-      include: {
-        approvalRule: {
-          where: { companyId: req.user.company_id },
-        },
-      },
-    });
-
-    if (!existingStep) {
-      return res.status(404).json({
-        error: true,
-        message: "Approval step not found",
-        code: "APPROVAL_STEP_NOT_FOUND",
-      });
-    }
-
-    // Validate approver if provided
-    if (approverId) {
+      // Validate approver
       const approver = await prisma.user.findFirst({
         where: {
           id: approverId,
@@ -545,43 +450,160 @@ router.put("/:ruleId/steps/:stepId", requireAdmin, [
           code: "INVALID_APPROVER",
         });
       }
-    }
 
-    // Update step
-    const step = await prisma.approvalStep.update({
-      where: { id: stepId },
-      data: {
-        ...(stepNumber && { stepNumber }),
-        ...(approverRole && { approverRole }),
-        ...(approverId && { approverId }),
-      },
-      include: {
-        approver: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            role: true,
+      // Check if step number already exists
+      const existingStep = await prisma.approvalStep.findFirst({
+        where: {
+          approvalRuleId: ruleId,
+          stepNumber,
+        },
+      });
+
+      if (existingStep) {
+        return res.status(409).json({
+          error: true,
+          message: `Step ${stepNumber} already exists for this rule`,
+          code: "STEP_ALREADY_EXISTS",
+        });
+      }
+
+      // Create step
+      const step = await prisma.approvalStep.create({
+        data: {
+          stepNumber,
+          approverRole,
+          approverId,
+          approvalRuleId: ruleId,
+        },
+        include: {
+          approver: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    res.json({
-      success: true,
-      message: "Approval step updated successfully",
-      data: { step },
-    });
-  } catch (error) {
-    console.error("Update approval step error:", error);
-    res.status(500).json({
-      error: true,
-      message: "Failed to update approval step",
-      code: "UPDATE_APPROVAL_STEP_ERROR",
-    });
+      res.status(201).json({
+        success: true,
+        message: "Approval step created successfully",
+        data: { step },
+      });
+    } catch (error) {
+      console.error("Create approval step error:", error);
+      res.status(500).json({
+        error: true,
+        message: "Failed to create approval step",
+        code: "CREATE_APPROVAL_STEP_ERROR",
+      });
+    }
   }
-});
+);
+
+// Update approval step
+router.put(
+  "/:ruleId/steps/:stepId",
+  requireAdmin,
+  [
+    body("stepNumber").optional().isInt({ min: 1 }),
+    body("approverRole").optional().trim().isLength({ min: 1 }),
+    body("approverId").optional().isUUID(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: true,
+          message: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: errors.array(),
+        });
+      }
+
+      const { ruleId, stepId } = req.params;
+      const { stepNumber, approverRole, approverId } = req.body;
+
+      // Check if step exists
+      const existingStep = await prisma.approvalStep.findFirst({
+        where: {
+          id: stepId,
+          approvalRuleId: ruleId,
+        },
+        include: {
+          approvalRule: {
+            where: { companyId: req.user.company_id },
+          },
+        },
+      });
+
+      if (!existingStep) {
+        return res.status(404).json({
+          error: true,
+          message: "Approval step not found",
+          code: "APPROVAL_STEP_NOT_FOUND",
+        });
+      }
+
+      // Validate approver if provided
+      if (approverId) {
+        const approver = await prisma.user.findFirst({
+          where: {
+            id: approverId,
+            companyId: req.user.company_id,
+            isActive: true,
+          },
+        });
+
+        if (!approver) {
+          return res.status(400).json({
+            error: true,
+            message: "Invalid approver selected",
+            code: "INVALID_APPROVER",
+          });
+        }
+      }
+
+      // Update step
+      const step = await prisma.approvalStep.update({
+        where: { id: stepId },
+        data: {
+          ...(stepNumber && { stepNumber }),
+          ...(approverRole && { approverRole }),
+          ...(approverId && { approverId }),
+        },
+        include: {
+          approver: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Approval step updated successfully",
+        data: { step },
+      });
+    } catch (error) {
+      console.error("Update approval step error:", error);
+      res.status(500).json({
+        error: true,
+        message: "Failed to update approval step",
+        code: "UPDATE_APPROVAL_STEP_ERROR",
+      });
+    }
+  }
+);
 
 // Delete approval step
 router.delete("/:ruleId/steps/:stepId", requireAdmin, async (req, res) => {
