@@ -45,6 +45,19 @@ import {
   Receipt,
 } from "lucide-react";
 import { expenseAPI } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Expense categories
+const EXPENSE_CATEGORIES = [
+  "Meals & Entertainment",
+  "Transportation", 
+  "Office Supplies",
+  "Travel",
+  "Training",
+  "Software",
+  "Hardware",
+  "Other",
+];
 
 // Status mapping from backend to frontend
 const mapExpenseStatus = (status) => {
@@ -96,6 +109,7 @@ const CATEGORY_FILTERS = [
 ];
 
 export function ExpenseHistory() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -247,6 +261,13 @@ export function ExpenseHistory() {
   const approvedAmount = filteredExpenses
     .filter((expense) => mapExpenseStatus(expense.status) === "approved")
     .reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+  const pendingAmount = filteredExpenses
+    .filter((expense) => mapExpenseStatus(expense.status) === "submitted")
+    .reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
+  
+  const totalExpenses = filteredExpenses.length;
+  const approvedExpenses = filteredExpenses.filter((expense) => mapExpenseStatus(expense.status) === "approved").length;
+  const pendingExpenses = filteredExpenses.filter((expense) => mapExpenseStatus(expense.status) === "submitted").length;
 
   return (
     <div className="space-y-6">
@@ -274,18 +295,117 @@ export function ExpenseHistory() {
         </div>
       </div>
 
-      {/* Tab-based Interface - Matching Mockup */}
-      <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Upload
-          </TabsTrigger>
-          <TabsTrigger value="new" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New
-          </TabsTrigger>
-        </TabsList>
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Submitted</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {totalExpenses} expenses
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              ${approvedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {approvedExpenses} expenses
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <Clock className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">
+              ${pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {pendingExpenses} expenses
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>
+            Filter expenses by status and category
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="relative flex-1 w-full sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search expenses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {EXPENSE_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tab-based Interface - Matching Mockup - Only for Employees */}
+      {user?.role !== "ADMIN" && (
+        <Tabs defaultValue="upload" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="upload" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Upload
+            </TabsTrigger>
+            <TabsTrigger value="new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New
+            </TabsTrigger>
+          </TabsList>
 
         <TabsContent value="upload" className="space-y-6">
           <Card>
@@ -545,7 +665,116 @@ export function ExpenseHistory() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      )}
+
+      {/* Admin View - Show All Expenses */}
+      {user?.role === "ADMIN" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>All Expenses</CardTitle>
+            <CardDescription>
+              View and manage all expense submissions across the organization
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span className="ml-2">Loading expenses...</span>
+              </div>
+            ) : filteredExpenses.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Current Approver</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredExpenses.map((expense) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="font-medium">
+                          {expense.employee?.firstName} {expense.employee?.lastName}
+                        </TableCell>
+                        <TableCell>{expense.description}</TableCell>
+                        <TableCell>
+                          {new Date(expense.expenseDate).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>{expense.category}</TableCell>
+                        <TableCell className="font-mono">
+                          {parseFloat(expense.amount).toLocaleString(undefined, {
+                            style: "currency",
+                            currency: expense.currency || "USD",
+                          })}
+                          {expense.amountInCompanyCurrency &&
+                            expense.currency !== "USD" && (
+                              <div className="text-xs text-muted-foreground">
+                                ({parseFloat(expense.amountInCompanyCurrency).toFixed(0)} USD)
+                              </div>
+                            )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              expense.status === "APPROVED"
+                                ? "default"
+                                : expense.status === "REJECTED"
+                                ? "destructive"
+                                : expense.status === "PENDING"
+                                ? "secondary"
+                                : "outline"
+                            }
+                            className={
+                              expense.status === "APPROVED"
+                                ? "bg-green-100 text-green-800"
+                                : expense.status === "PENDING"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : ""
+                            }
+                          >
+                            {expense.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {expense.currentApprover
+                            ? `${expense.currentApprover?.firstName} ${expense.currentApprover?.lastName}`
+                            : "N/A"}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedExpense(expense);
+                              setIsModalOpen(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No expenses found</p>
+                <p className="text-sm">No expenses match your current filters</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Expense Detail Modal */}
       <Modal

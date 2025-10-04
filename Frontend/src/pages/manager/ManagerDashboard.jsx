@@ -15,6 +15,7 @@ import { CheckCircle, Clock, Users, DollarSign, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { approvalAPI, expenseAPI, userAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export function ManagerDashboard() {
   const { user } = useAuth();
@@ -152,13 +153,13 @@ export function ManagerDashboard() {
         setShowApprovalModal(false);
         setApprovalComment("");
         setSelectedExpense(null);
-        alert("Expense approved successfully!");
+        toast.success("Expense approved successfully!");
       } else {
         throw new Error(response.message || "Approval failed");
       }
     } catch (error) {
       console.error("Approval failed:", error);
-      alert("Failed to approve expense. Please try again.");
+      toast.error("Failed to approve expense. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -168,7 +169,7 @@ export function ManagerDashboard() {
     if (!selectedExpense) return;
 
     if (!rejectionComment.trim()) {
-      alert("Please provide a reason for rejection.");
+      toast.error("Please provide a reason for rejection.");
       return;
     }
 
@@ -196,13 +197,13 @@ export function ManagerDashboard() {
         setShowRejectionModal(false);
         setRejectionComment("");
         setSelectedExpense(null);
-        alert("Expense rejected successfully!");
+        toast.success("Expense rejected successfully!");
       } else {
         throw new Error(response.message || "Rejection failed");
       }
     } catch (error) {
       console.error("Rejection failed:", error);
-      alert("Failed to reject expense. Please try again.");
+      toast.error("Failed to reject expense. Please try again.");
     } finally {
       setIsProcessing(false);
     }
