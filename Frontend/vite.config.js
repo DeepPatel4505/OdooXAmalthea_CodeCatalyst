@@ -14,4 +14,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: ['@reduxjs/toolkit', 'recharts']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/node_modules/]
+    }
+  }
 })
