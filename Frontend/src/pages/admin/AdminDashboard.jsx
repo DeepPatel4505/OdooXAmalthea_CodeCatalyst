@@ -1,211 +1,214 @@
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Users, Receipt, Settings, BarChart3, DollarSign, Clock, CheckCircle, Search, Filter, Download } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select'
-import { expenseAPI, userAPI } from '@/services/api'
-import { useAuth } from '@/contexts/AuthContext'
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Users,
+  Receipt,
+  Settings,
+  BarChart3,
+  DollarSign,
+  Clock,
+  CheckCircle,
+  Search,
+  Filter,
+  Download,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { expenseAPI, userAPI } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock data
-const mockStats = {
-  totalUsers: 45,
-  activeUsers: 42,
-  pendingExpenses: 23,
-  approvedThisMonth: 156,
-  totalAmount: 125000,
-  averageProcessingTime: 2.5
-}
-
+// Remove mock data - will be replaced with real API data
 const mockRecentActivity = [
   {
-    id: '1',
-    type: 'expense_approved',
-    user: 'John Doe',
-    amount: 125.50,
-    timestamp: '2024-01-16T10:30:00Z',
-    status: 'approved'
+    id: "1",
+    type: "expense_approved",
+    user: "John Doe",
+    amount: 125.5,
+    timestamp: "2024-01-16T10:30:00Z",
+    status: "approved",
   },
   {
-    id: '2',
-    type: 'user_created',
-    user: 'Jane Smith',
-    timestamp: '2024-01-16T09:15:00Z',
-    status: 'created'
+    id: "2",
+    type: "user_created",
+    user: "Jane Smith",
+    timestamp: "2024-01-16T09:15:00Z",
+    status: "created",
   },
   {
-    id: '3',
-    type: 'expense_rejected',
-    user: 'Mike Johnson',
+    id: "3",
+    type: "expense_rejected",
+    user: "Mike Johnson",
     amount: 89.99,
-    timestamp: '2024-01-16T08:45:00Z',
-    status: 'rejected'
-  }
-]
-
-// Mock expense data for admin view
-const mockExpenses = [
-  {
-    id: '1',
-    employee: 'Sarah Davis',
-    description: 'Restaurant bill',
-    date: '2024-01-15',
-    category: 'Food',
-    amount: '1000',
-    currency: 'INR',
-    status: 'Submitted',
-    currentApprover: 'Manager',
-    submittedAt: '2024-01-15T18:30:00Z'
+    timestamp: "2024-01-16T08:45:00Z",
+    status: "rejected",
   },
-  {
-    id: '2',
-    employee: 'John Smith',
-    description: 'Office supplies',
-    date: '2024-01-16',
-    category: 'Office',
-    amount: '450',
-    currency: 'USD',
-    status: 'Approved',
-    currentApprover: 'Completed',
-    submittedAt: '2024-01-16T09:15:00Z'
-  },
-  {
-    id: '3',
-    employee: 'Mike Wilson',
-    description: 'Transportation',
-    date: '2024-01-14',
-    category: 'Travel',
-    amount: '89.50',
-    currency: 'EUR',
-    status: 'Pending Approval',
-    currentApprover: 'Finance',
-    submittedAt: '2024-01-14T14:20:00Z'
-  }
-]
+];
 
 const getActivityIcon = (type) => {
   switch (type) {
-    case 'expense_approved':
-      return <CheckCircle className="h-4 w-4 text-green-500" />
-    case 'expense_rejected':
-      return <Clock className="h-4 w-4 text-red-500" />
-    case 'user_created':
-      return <Users className="h-4 w-4 text-blue-500" />
+    case "expense_approved":
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
+    case "expense_rejected":
+      return <Clock className="h-4 w-4 text-red-500" />;
+    case "user_created":
+      return <Users className="h-4 w-4 text-blue-500" />;
     default:
-      return <Receipt className="h-4 w-4 text-gray-500" />
+      return <Receipt className="h-4 w-4 text-gray-500" />;
   }
-}
+};
 
 const getActivityBadge = (status) => {
   switch (status) {
-    case 'approved':
-      return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>
-    case 'rejected':
-      return <Badge variant="destructive">Rejected</Badge>
-    case 'created':
-      return <Badge variant="secondary">Created</Badge>
+    case "approved":
+      return (
+        <Badge variant="default" className="bg-green-100 text-green-800">
+          Approved
+        </Badge>
+      );
+    case "rejected":
+      return <Badge variant="destructive">Rejected</Badge>;
+    case "created":
+      return <Badge variant="secondary">Created</Badge>;
     default:
-      return <Badge variant="outline">Unknown</Badge>
+      return <Badge variant="outline">Unknown</Badge>;
   }
-}
+};
 
 export function AdminDashboard() {
-  const { user } = useAuth()
-  const [expenseFilter, setExpenseFilter] = useState('all')
-  const [expenseSearch, setExpenseSearch] = useState('')
-  const [expenses, setExpenses] = useState([])
-  const [stats, setStats] = useState(mockStats)
-  const [isLoading, setIsLoading] = useState(true)
+  const { user } = useAuth();
+  const [expenseFilter, setExpenseFilter] = useState("all");
+  const [expenseSearch, setExpenseSearch] = useState("");
+  const [expenses, setExpenses] = useState([]);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    pendingExpenses: 0,
+    approvedThisMonth: 0,
+    totalAmount: 0,
+    averageProcessingTime: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setIsLoading(true)
-        
-        // Fetch expenses and statistics in parallel
-        const [expensesResponse, statsResponse] = await Promise.all([
-          expenseAPI.getExpenses({ page: 1, limit: 50 }),
-          expenseAPI.getStatistics()
-        ])
+        setIsLoading(true);
+
+        // Fetch expenses, statistics, and user stats in parallel
+        const [expensesResponse, statsResponse, userStatsResponse] =
+          await Promise.all([
+            expenseAPI.getExpenses({ page: 1, limit: 50 }),
+            expenseAPI.getStatistics(),
+            userAPI.getUserStats(),
+          ]);
 
         if (expensesResponse.success) {
-          setExpenses(expensesResponse.data.expenses)
+          setExpenses(expensesResponse.data.expenses);
         }
 
-        if (statsResponse.success) {
-          setStats(statsResponse.data.statistics)
+        if (statsResponse.success && userStatsResponse.success) {
+          const expenseStats = statsResponse.data.statistics;
+          const userStats = userStatsResponse.data.statistics;
+
+          setStats({
+            totalUsers: userStats.totalUsers,
+            activeUsers: userStats.activeUsers,
+            pendingExpenses: expenseStats.pendingExpenses,
+            approvedThisMonth: expenseStats.approvedExpenses,
+            totalAmount: expenseStats.totalAmountApproved,
+            averageProcessingTime: 2.5, // This would need to be calculated from approval times
+          });
         }
       } catch (error) {
-        console.error('Failed to fetch dashboard data:', error)
+        console.error("Failed to fetch dashboard data:", error);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    if (user?.role === 'ADMIN') {
-      fetchData()
+    if (user?.role === "ADMIN") {
+      fetchData();
     }
-  }, [user])
+  }, [user]);
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'PENDING':
-        return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>
-      case 'APPROVED':
-        return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>
-      case 'REJECTED':
-        return <Badge variant="destructive">Rejected</Badge>
+      case "PENDING":
+        return (
+          <Badge variant="default" className="bg-yellow-100 text-yellow-800">
+            Pending Approval
+          </Badge>
+        );
+      case "APPROVED":
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-800">
+            Approved
+          </Badge>
+        );
+      case "REJECTED":
+        return <Badge variant="destructive">Rejected</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
-  const filteredExpenses = expenses.filter(expense => {
-    const employeeName = `${expense.employee?.firstName || ''} ${expense.employee?.lastName || ''}`.trim()
-    const matchesSearch = employeeName.toLowerCase().includes(expenseSearch.toLowerCase()) ||
-                         expense.description.toLowerCase().includes(expenseSearch.toLowerCase()) ||
-                         expense.category.toLowerCase().includes(expenseSearch.toLowerCase())
-    
-    const normalizedStatus = expense.status?.toLowerCase()
-    const matchesFilter = expenseFilter === 'all' || 
-                         normalizedStatus.includes(expenseFilter.toLowerCase())
-    
-    return matchesSearch && matchesFilter
-  })
+  const filteredExpenses = expenses.filter((expense) => {
+    const employeeName = `${expense.employee?.firstName || ""} ${
+      expense.employee?.lastName || ""
+    }`.trim();
+    const matchesSearch =
+      employeeName.toLowerCase().includes(expenseSearch.toLowerCase()) ||
+      expense.description.toLowerCase().includes(expenseSearch.toLowerCase()) ||
+      expense.category.toLowerCase().includes(expenseSearch.toLowerCase());
+
+    const normalizedStatus = expense.status?.toLowerCase();
+    const matchesFilter =
+      expenseFilter === "all" ||
+      normalizedStatus.includes(expenseFilter.toLowerCase());
+
+    return matchesSearch && matchesFilter;
+  });
 
   const handleApproveExpense = async (expenseId) => {
     try {
       // TODO: Implement approval via approval API
-      console.log('Approving expense:', expenseId)
+      console.log("Approving expense:", expenseId);
     } catch (error) {
-      console.error('Failed to approve expense:', error)
+      console.error("Failed to approve expense:", error);
     }
-  }
+  };
 
   const handleRejectExpense = async (expenseId) => {
     try {
       // TODO: Implement rejection via approval API
-      console.log('Rejecting expense:', expenseId)
+      console.log("Rejecting expense:", expenseId);
     } catch (error) {
-      console.error('Failed to reject expense:', error)
+      console.error("Failed to reject expense:", error);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -240,36 +243,40 @@ export function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockStats.totalUsers}</div>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              {mockStats.activeUsers} active
+              {stats.activeUsers} active
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Expenses</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Expenses
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{mockStats.pendingExpenses}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting approval
-            </p>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.pendingExpenses}
+            </div>
+            <p className="text-xs text-muted-foreground">Awaiting approval</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Approved This Month
+            </CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{mockStats.approvedThisMonth}</div>
-            <p className="text-xs text-muted-foreground">
-              Expenses approved
-            </p>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.approvedThisMonth}
+            </div>
+            <p className="text-xs text-muted-foreground">Expenses approved</p>
           </CardContent>
         </Card>
 
@@ -279,7 +286,9 @@ export function AdminDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${mockStats.totalAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold">
+              ${stats.totalAmount.toLocaleString()}
+            </div>
             <p className="text-xs text-muted-foreground">
               Processed this month
             </p>
@@ -294,7 +303,9 @@ export function AdminDashboard() {
             <CardTitle className="text-base">Average Processing Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{mockStats.averageProcessingTime} days</div>
+            <div className="text-3xl font-bold">
+              {stats.averageProcessingTime} days
+            </div>
             <p className="text-xs text-muted-foreground">
               From submission to approval
             </p>
@@ -308,7 +319,9 @@ export function AdminDashboard() {
           <CardContent>
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-medium">All Systems Operational</span>
+              <span className="text-sm font-medium">
+                All Systems Operational
+              </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Last updated 2 minutes ago
@@ -392,43 +405,50 @@ export function AdminDashboard() {
                 filteredExpenses.map((expense) => (
                   <TableRow key={expense.id}>
                     <TableCell className="font-medium">
-                      {`${expense.employee?.firstName || ''} ${expense.employee?.lastName || ''}`.trim()}
+                      {`${expense.employee?.firstName || ""} ${
+                        expense.employee?.lastName || ""
+                      }`.trim()}
                     </TableCell>
                     <TableCell>{expense.description}</TableCell>
-                    <TableCell>{new Date(expense.expenseDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {new Date(expense.expenseDate).toLocaleDateString()}
+                    </TableCell>
                     <TableCell>{expense.category}</TableCell>
                     <TableCell className="font-mono">
                       {expense.amount} {expense.currency}
-                      {expense.amountInCompanyCurrency && expense.currency !== user?.company?.defaultCurrency && (
-                        <div className="text-xs text-muted-foreground">
-                          ({expense.amountInCompanyCurrency} {user?.company?.defaultCurrency})
-                        </div>
-                      )}
+                      {expense.amountInCompanyCurrency &&
+                        expense.currency !== user?.company?.defaultCurrency && (
+                          <div className="text-xs text-muted-foreground">
+                            ({expense.amountInCompanyCurrency}{" "}
+                            {user?.company?.defaultCurrency})
+                          </div>
+                        )}
                     </TableCell>
                     <TableCell>{getStatusBadge(expense.status)}</TableCell>
                     <TableCell>
-                      {expense.currentApprover ? 
-                        `${expense.currentApprover?.firstName || ''} ${expense.currentApprover?.lastName || ''}`.trim() 
-                        : 'N/A'
-                      }
+                      {expense.currentApprover
+                        ? `${expense.currentApprover?.firstName || ""} ${
+                            expense.currentApprover?.lastName || ""
+                          }`.trim()
+                        : "N/A"}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm">
                           View
                         </Button>
-                        {expense.status === 'PENDING' && (
+                        {expense.status === "PENDING" && (
                           <>
-                            <Button 
-                              variant="default" 
-                              size="sm" 
+                            <Button
+                              variant="default"
+                              size="sm"
                               className="bg-green-600 hover:bg-green-700"
                               onClick={() => handleApproveExpense(expense.id)}
                             >
                               Approve
                             </Button>
-                            <Button 
-                              variant="destructive" 
+                            <Button
+                              variant="destructive"
                               size="sm"
                               onClick={() => handleRejectExpense(expense.id)}
                             >
@@ -442,8 +462,11 @@ export function AdminDashboard() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    {isLoading ? 'Loading expenses...' : 'No expenses found'}
+                  <TableCell
+                    colSpan={8}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    {isLoading ? "Loading expenses..." : "No expenses found"}
                   </TableCell>
                 </TableRow>
               )}
@@ -463,17 +486,19 @@ export function AdminDashboard() {
         <CardContent>
           <div className="space-y-4">
             {mockRecentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div
+                key={activity.id}
+                className="flex items-center justify-between p-4 border rounded-lg"
+              >
                 <div className="flex items-center gap-4">
                   {getActivityIcon(activity.type)}
                   <div>
                     <p className="font-medium">
-                      {activity.type === 'user_created' 
+                      {activity.type === "user_created"
                         ? `${activity.user} joined the system`
-                        : activity.type === 'expense_approved'
+                        : activity.type === "expense_approved"
                         ? `${activity.user} had an expense approved`
-                        : `${activity.user} had an expense rejected`
-                      }
+                        : `${activity.user} had an expense rejected`}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {new Date(activity.timestamp).toLocaleString()}
@@ -492,5 +517,5 @@ export function AdminDashboard() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

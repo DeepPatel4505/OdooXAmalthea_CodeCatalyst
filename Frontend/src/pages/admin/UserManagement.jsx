@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
 import {
   Card,
   CardContent,
@@ -8,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -26,55 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Modal } from "@/components/ui/modal";
-import { Plus, Search, Edit, Trash2, UserPlus } from "lucide-react";
+import { Plus, Search, Edit, Trash2, UserPlus, Loader2 } from "lucide-react";
+import { userAPI } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Mock data
-const mockUsers = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john@company.com",
-    role: "admin",
-    status: "active",
-    department: "IT",
-    manager: "Jane Smith",
-    lastLogin: "2024-01-16T10:30:00Z",
-    createdAt: "2023-06-15T09:00:00Z",
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane@company.com",
-    role: "manager",
-    status: "active",
-    department: "Finance",
-    manager: "Mike Johnson",
-    lastLogin: "2024-01-16T09:15:00Z",
-    createdAt: "2023-05-20T09:00:00Z",
-  },
-  {
-    id: "3",
-    name: "Mike Johnson",
-    email: "mike@company.com",
-    role: "employee",
-    status: "active",
-    department: "Sales",
-    manager: "Jane Smith",
-    lastLogin: "2024-01-15T16:45:00Z",
-    createdAt: "2023-08-10T09:00:00Z",
-  },
-  {
-    id: "4",
-    name: "Sarah Wilson",
-    email: "sarah@company.com",
-    role: "employee",
-    status: "inactive",
-    department: "Marketing",
-    manager: "Jane Smith",
-    lastLogin: "2024-01-10T14:20:00Z",
-    createdAt: "2023-09-05T09:00:00Z",
-  },
-];
+// Remove mock data - will be replaced with real API data
 
 const ROLES = [
   { value: "admin", label: "Administrator" },
@@ -89,25 +47,74 @@ const STATUSES = [
 ];
 
 export function UserManagement() {
+  const { user } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
-  const filteredUsers = mockUsers.filter((user) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm();
+
+  // Load users and managers on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [usersResponse, managersResponse] = await Promise.all([
+          userAPI.getUsers({ page: 1, limit: 100 }),
+          userAPI.getManagers(),
+        ]);
+
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users);
+        }
+
+        if (managersResponse.success) {
+          setManagers(managersResponse.data.managers);
+        }
+      } catch (error) {
+        console.error("Failed to fetch users:", error);
+        setError("Failed to load users");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user?.role === "ADMIN") {
+      fetchData();
+    }
+  }, [user]);
+
+  const filteredUsers = users.filter((user) => {
+    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fullName.includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    const matchesRole =
+      roleFilter === "all" || user.role.toLowerCase() === roleFilter;
     const matchesStatus =
-      statusFilter === "all" || user.status === statusFilter;
+      statusFilter === "all" ||
+      (statusFilter === "active" && user.isActive) ||
+      (statusFilter === "inactive" && !user.isActive);
 
     return matchesSearch && matchesRole && matchesStatus;
   });
 
   const getRoleBadge = (role) => {
-    switch (role) {
+    switch (role?.toLowerCase()) {
       case "admin":
         return <Badge variant="destructive">Admin</Badge>;
       case "manager":
@@ -119,29 +126,59 @@ export function UserManagement() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "active":
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-800">
-            Active
-          </Badge>
-        );
-      case "inactive":
-        return <Badge variant="secondary">Inactive</Badge>;
-      case "pending":
-        return <Badge variant="outline">Pending</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
+  const getStatusBadge = (isActive) => {
+    return isActive ? (
+      <Badge variant="default" className="bg-green-100 text-green-800">
+        Active
+      </Badge>
+    ) : (
+      <Badge variant="secondary">Inactive</Badge>
+    );
+  };
+
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
+  };
+
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await userAPI.createUser(data);
+      if (response.success) {
+        // Refresh users list
+        const usersResponse = await userAPI.getUsers({ page: 1, limit: 100 });
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users);
+        }
+        setShowAddUserModal(false);
+        reset();
+      }
+    } catch (error) {
+      console.error("Failed to create user:", error);
+      setError(error.message || "Failed to create user");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const getInitials = (name) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const handleDeleteUser = async (userId) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      const response = await userAPI.deleteUser(userId);
+      if (response.success) {
+        // Refresh users list
+        const usersResponse = await userAPI.getUsers({ page: 1, limit: 100 });
+        if (usersResponse.success) {
+          setUsers(usersResponse.data.users);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to delete user:", error);
+      setError(error.message || "Failed to delete user");
+    }
   };
 
   return (
@@ -229,50 +266,71 @@ export function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {getInitials(user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getRoleBadge(user.role)}</TableCell>
-                  <TableCell>{user.department}</TableCell>
-                  <TableCell>{user.manager}</TableCell>
-                  <TableCell>{getStatusBadge(user.status)}</TableCell>
-                  <TableCell>
-                    {new Date(user.lastLogin).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setSelectedUser(user)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading users...
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>
+                            {getInitials(user.firstName, user.lastName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{`${user.firstName} ${user.lastName}`}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getRoleBadge(user.role)}</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>{getStatusBadge(user.isActive)}</TableCell>
+                    <TableCell>
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedUser(user)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    No users found
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -281,25 +339,100 @@ export function UserManagement() {
       {/* Add User Modal */}
       <Modal
         isOpen={showAddUserModal}
-        onClose={() => setShowAddUserModal(false)}
+        onClose={() => {
+          setShowAddUserModal(false);
+          reset();
+          setError(null);
+        }}
         title="Add New User"
       >
-        <div className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <p className="text-muted-foreground">
             Add a new user to the system. They will receive an email invitation.
           </p>
+
+          {error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name</label>
-              <Input placeholder="John Doe" />
+              <Label htmlFor="firstName">First Name</Label>
+              <Input
+                id="firstName"
+                placeholder="John"
+                {...register("firstName", {
+                  required: "First name is required",
+                })}
+              />
+              {errors.firstName && (
+                <p className="text-sm text-destructive">
+                  {errors.firstName.message}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" placeholder="john@company.com" />
+              <Label htmlFor="lastName">Last Name</Label>
+              <Input
+                id="lastName"
+                placeholder="Doe"
+                {...register("lastName", { required: "Last name is required" })}
+              />
+              {errors.lastName && (
+                <p className="text-sm text-destructive">
+                  {errors.lastName.message}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Role</label>
-              <Select>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="john@company.com"
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: "Invalid email address",
+                  },
+                })}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password"
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters",
+                  },
+                })}
+              />
+              {errors.password && (
+                <p className="text-sm text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role">Role</Label>
+              <Select onValueChange={(value) => setValue("role", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -311,42 +444,54 @@ export function UserManagement() {
                   ))}
                 </SelectContent>
               </Select>
+              {errors.role && (
+                <p className="text-sm text-destructive">Role is required</p>
+              )}
             </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Department</label>
-              <Input placeholder="IT" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Manager</label>
-              <Select>
+              <Label htmlFor="managerId">Manager (Optional)</Label>
+              <Select onValueChange={(value) => setValue("managerId", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select manager" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockUsers
-                    .filter(
-                      (user) => user.role === "manager" || user.role === "admin"
-                    )
-                    .map((manager) => (
-                      <SelectItem key={manager.id} value={manager.id}>
-                        {manager.name} ({manager.role})
-                      </SelectItem>
-                    ))}
+                  {managers.map((manager) => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      {`${manager.firstName} ${manager.lastName}`} (
+                      {manager.role})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
           <div className="flex gap-2 pt-4">
-            <Button className="flex-1">Send Invitation</Button>
+            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                "Create User"
+              )}
+            </Button>
             <Button
+              type="button"
               variant="outline"
-              onClick={() => setShowAddUserModal(false)}
+              onClick={() => {
+                setShowAddUserModal(false);
+                reset();
+                setError(null);
+              }}
               className="flex-1"
             >
               Cancel
             </Button>
           </div>
-        </div>
+        </form>
       </Modal>
     </div>
   );

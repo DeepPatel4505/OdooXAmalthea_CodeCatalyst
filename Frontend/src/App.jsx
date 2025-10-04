@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
 } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -34,7 +35,7 @@ function ProtectedRoute({ children, allowedRoles }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && !allowedRoles.includes(user.role?.toLowerCase())) {
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -44,11 +45,19 @@ function ProtectedRoute({ children, allowedRoles }) {
 // Auth Page Component
 function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
+
+  const handleAuthSuccess = () => {
+    // The AuthContext will automatically update the authentication state
+    // React Router will handle the navigation based on the user's role
+    // No need to reload the page - just navigate to the default route
+    navigate("/", { replace: true });
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -61,9 +70,9 @@ function AuthPage() {
         </div>
 
         {isLogin ? (
-          <LoginForm onSuccess={() => window.location.reload()} />
+          <LoginForm onSuccess={handleAuthSuccess} />
         ) : (
-          <SignupForm onSuccess={() => window.location.reload()} />
+          <SignupForm onSuccess={handleAuthSuccess} />
         )}
 
         <div className="mt-6 text-center">
@@ -102,7 +111,7 @@ function AppContent() {
 
   const getDefaultRoute = () => {
     if (!user) return "/login";
-    switch (user.role) {
+    switch (user.role?.toLowerCase()) {
       case "admin":
         return "/admin";
       case "manager":

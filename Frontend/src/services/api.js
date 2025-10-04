@@ -180,6 +180,11 @@ export const userAPI = {
   getManagers: async () => {
     return apiService.get("/users/managers/list");
   },
+
+  // Get user statistics (Admin)
+  getUserStats: async () => {
+    return apiService.get("/users/stats");
+  },
 };
 
 // Expense API methods
