@@ -108,7 +108,7 @@ function UnauthorizedPage() {
 
 // Main App Component
 function AppContent() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   const getDefaultRoute = () => {
     if (!user) return "/login";
@@ -123,6 +123,18 @@ function AppContent() {
         return "/login";
     }
   };
+
+  // Show loading spinner while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground mt-2">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -261,11 +273,29 @@ function AppContent() {
           }
         />
 
-        {/* Default Route */}
+        {/* Default Route - only redirect if not on a valid route */}
         <Route path="/" element={<Navigate to={getDefaultRoute()} replace />} />
 
-        {/* Catch all route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 404 Route - only for truly invalid routes */}
+        <Route 
+          path="*" 
+          element={
+            <div className="min-h-screen flex items-center justify-center bg-background">
+              <div className="text-center">
+                <h1 className="text-2xl font-bold">404 - Page Not Found</h1>
+                <p className="text-muted-foreground mt-2">
+                  The page you're looking for doesn't exist.
+                </p>
+                <button 
+                  onClick={() => window.history.back()}
+                  className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+                >
+                  Go Back
+                </button>
+              </div>
+            </div>
+          } 
+        />
       </Routes>
     </Router>
   );
