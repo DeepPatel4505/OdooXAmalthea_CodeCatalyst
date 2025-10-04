@@ -50,7 +50,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Logging
-app.use(morgan("combined"));
+// app.use(morgan("combined"));
 
 // Body parsing middleware
 app.use(express.json({ limit: "10mb" }));

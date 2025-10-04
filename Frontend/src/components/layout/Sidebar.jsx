@@ -33,8 +33,8 @@ const navigation = {
   ],
   employee: [
     { name: "Dashboard", href: "/employee", icon: Home },
-    { name: "Submit Expense", href: "/employee/submit", icon: FileText },
     { name: "My Expenses", href: "/employee/expenses", icon: Receipt },
+    { name: "Submit Expense", href: "/employee/submit", icon: FileText },
   ],
 };
 

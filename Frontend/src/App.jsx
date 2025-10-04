@@ -8,8 +8,7 @@ import {
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/layout/Layout";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { SignupForm } from "@/components/auth/SignupForm";
+import { AuthPage } from "@/pages/AuthPage";
 
 // Employee Pages
 import { EmployeeDashboard } from "@/pages/employee/EmployeeDashboard";
@@ -41,46 +40,6 @@ function ProtectedRoute({ children, allowedRoles }) {
   return <Layout>{children}</Layout>;
 }
 
-// Auth Page Component
-function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const { isAuthenticated } = useAuth();
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Expense Manager</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your expense reimbursements efficiently
-          </p>
-        </div>
-
-        {isLogin ? (
-          <LoginForm onSuccess={() => window.location.reload()} />
-        ) : (
-          <SignupForm onSuccess={() => window.location.reload()} />
-        )}
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="ml-1 text-primary hover:underline"
-            >
-              {isLogin ? "Sign up" : "Sign in"}
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Unauthorized Page
 function UnauthorizedPage() {
@@ -144,6 +103,15 @@ function AppContent() {
           element={
             <ProtectedRoute allowedRoles={["employee", "admin", "manager"]}>
               <ExpenseHistory />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/employee/submit/:id"
+          element={
+            <ProtectedRoute allowedRoles={["employee", "admin", "manager"]}>
+              <ExpenseSubmission />
             </ProtectedRoute>
           }
         />

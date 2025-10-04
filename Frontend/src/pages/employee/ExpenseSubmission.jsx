@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,12 +46,15 @@ const CURRENCIES = [
   { code: "CHF", symbol: "CHF", name: "Swiss Franc" },
 ];
 
-// Mock company currency (would come from context/API)
 const COMPANY_CURRENCY = "USD";
 
 export function ExpenseSubmission() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(isEditMode); // show loading spinner for edit
   const [uploadedFile, setUploadedFile] = useState(null);
   const [ocrData, setOcrData] = useState(null);
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);
@@ -62,8 +65,9 @@ export function ExpenseSubmission() {
   const {
     register,
     handleSubmit,
-    watch,
     setValue,
+    watch,
+    reset,
     formState: { errors },
   } = useForm({
     defaultValues: {
@@ -79,14 +83,38 @@ export function ExpenseSubmission() {
   const amount = watch("amount");
   const currency = CURRENCIES.find((c) => c.code === selectedCurrency);
 
-  // Currency conversion effect
-  React.useEffect(() => {
+  // 🟢 Step 1: Load existing expense if in edit mode
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    const fetchExpense = async () => {
+      setIsLoading(true);
+      try {
+        // TODO: Replace mock with real API: GET /api/expenses/:id
+        const mockData = {
+          amount: 5000,
+          category: "Food",
+          description: "Restaurant bill",
+          date: "2025-10-04",
+          currency: "INR",
+        };
+
+        // Populate form
+        reset(mockData);
+      } catch (error) {
+        console.error("Failed to load expense:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchExpense();
+  }, [id, isEditMode, reset]);
+
+  // 🟢 Step 2: Handle currency conversion (same as before)
+  useEffect(() => {
     const convertCurrency = async () => {
-      if (
-        !amount ||
-        !selectedCurrency ||
-        selectedCurrency === COMPANY_CURRENCY
-      ) {
+      if (!amount || !selectedCurrency || selectedCurrency === COMPANY_CURRENCY) {
         setConvertedAmount(null);
         setExchangeRate(null);
         return;
@@ -94,8 +122,6 @@ export function ExpenseSubmission() {
 
       setIsConverting(true);
       try {
-        // TODO: Connect to real currency API
-        // For now, use mock conversion rates
         const mockRates = {
           EUR: 0.85,
           GBP: 0.73,
@@ -107,13 +133,11 @@ export function ExpenseSubmission() {
           CNY: 6.45,
           CHF: 0.92,
         };
-
         const rate = mockRates[selectedCurrency] || 1;
-        const converted = parseFloat(amount) * rate;
         setExchangeRate(rate);
-        setConvertedAmount(converted);
-      } catch (error) {
-        console.error("Currency conversion failed:", error);
+        setConvertedAmount(parseFloat(amount) * rate);
+      } catch (err) {
+        console.error("Conversion failed", err);
       } finally {
         setIsConverting(false);
       }
@@ -122,6 +146,7 @@ export function ExpenseSubmission() {
     convertCurrency();
   }, [amount, selectedCurrency]);
 
+  // 🟢 Step 3: Handle OCR upload (same)
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -129,8 +154,6 @@ export function ExpenseSubmission() {
     setUploadedFile(file);
     setIsProcessingOcr(true);
 
-    // TODO: Connect to OCR API
-    // Simulate OCR processing
     setTimeout(() => {
       const mockOcrData = {
         amount: "125.50",
@@ -141,7 +164,6 @@ export function ExpenseSubmission() {
       setOcrData(mockOcrData);
       setIsProcessingOcr(false);
 
-      // Auto-fill form with OCR data
       setValue("amount", mockOcrData.amount);
       setValue("date", mockOcrData.date);
       setValue("description", mockOcrData.merchant);
@@ -149,29 +171,49 @@ export function ExpenseSubmission() {
     }, 2000);
   };
 
+  // 🟢 Step 4: Submit (create or update)
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // TODO: Connect to API
-      console.log("Submitting expense:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (isEditMode) {
+        // PUT /api/expenses/:id
+        console.log("Updating expense:", id, data);
+      } else {
+        // POST /api/expenses
+        console.log("Creating new expense:", data);
+      }
+
+      await new Promise((res) => setTimeout(res, 800)); // mock delay
       navigate("/employee");
     } catch (error) {
-      console.error("Submission failed:", error);
+      console.error("Error saving expense:", error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-muted-foreground">Loading expense...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Submit Expense</h1>
+        <h1 className="text-3xl font-bold">
+          {isEditMode ? "Edit Expense" : "Submit Expense"}
+        </h1>
         <p className="text-muted-foreground">
-          Submit a new expense for reimbursement
+          {isEditMode
+            ? "Update your existing expense details"
+            : "Submit a new expense for reimbursement"}
         </p>
       </div>
 
+      {/* Upload Section */}
       <Card>
         <CardHeader>
           <CardTitle>Receipt Upload</CardTitle>
@@ -232,13 +274,19 @@ export function ExpenseSubmission() {
         </CardContent>
       </Card>
 
+      {/* Expense Details Form */}
       <Card>
         <CardHeader>
           <CardTitle>Expense Details</CardTitle>
-          <CardDescription>Fill in the expense information</CardDescription>
+          <CardDescription>
+            {isEditMode
+              ? "Modify your expense information"
+              : "Fill in the expense information"}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Amount & Currency */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount</Label>
@@ -253,10 +301,7 @@ export function ExpenseSubmission() {
                     placeholder="0.00"
                     {...register("amount", {
                       required: "Amount is required",
-                      min: {
-                        value: 0.01,
-                        message: "Amount must be greater than 0",
-                      },
+                      min: { value: 0.01, message: "Amount must be > 0" },
                     })}
                     className="rounded-l-none"
                   />
@@ -273,19 +318,19 @@ export function ExpenseSubmission() {
                       {convertedAmount.toFixed(2)}
                     </p>
                     <p className="text-xs text-blue-600">
-                      Exchange rate: 1 {selectedCurrency} = {exchangeRate}{" "}
+                      Rate: 1 {selectedCurrency} = {exchangeRate}{" "}
                       {COMPANY_CURRENCY}
                     </p>
-                    {isConverting && (
-                      <p className="text-xs text-blue-600">Converting...</p>
-                    )}
                   </div>
                 )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
-                <Select onValueChange={(value) => setValue("currency", value)}>
+                <Select
+                  value={selectedCurrency}
+                  onValueChange={(value) => setValue("currency", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
@@ -300,9 +345,13 @@ export function ExpenseSubmission() {
               </div>
             </div>
 
+            {/* Category */}
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select onValueChange={(value) => setValue("category", value)}>
+              <Select
+                onValueChange={(value) => setValue("category", value)}
+                value={watch("category")}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -314,27 +363,19 @@ export function ExpenseSubmission() {
                   ))}
                 </SelectContent>
               </Select>
-              {errors.category && (
-                <p className="text-sm text-destructive">Category is required</p>
-              )}
             </div>
 
+            {/* Description */}
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 placeholder="Describe the expense..."
-                {...register("description", {
-                  required: "Description is required",
-                })}
+                {...register("description", { required: "Description is required" })}
               />
-              {errors.description && (
-                <p className="text-sm text-destructive">
-                  {errors.description.message}
-                </p>
-              )}
             </div>
 
+            {/* Date */}
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
               <Input
@@ -342,16 +383,18 @@ export function ExpenseSubmission() {
                 type="date"
                 {...register("date", { required: "Date is required" })}
               />
-              {errors.date && (
-                <p className="text-sm text-destructive">
-                  {errors.date.message}
-                </p>
-              )}
             </div>
 
+            {/* Submit Buttons */}
             <div className="flex gap-4 pt-4">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Submit Expense"}
+                {isSubmitting
+                  ? isEditMode
+                    ? "Updating..."
+                    : "Submitting..."
+                  : isEditMode
+                  ? "Update Expense"
+                  : "Submit Expense"}
               </Button>
               <Button
                 type="button"
