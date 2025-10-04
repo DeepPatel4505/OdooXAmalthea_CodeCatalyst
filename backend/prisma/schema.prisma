@@ -1,0 +1,168 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id               String   @id @default(uuid())
+  name             String
+  country          String   @db.VarChar(3)
+  defaultCurrency  String   @db.VarChar(3)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  users            User[]
+  expenses         Expense[]
+  approvalRules    ApprovalRule[]
+
+  @@map("companies")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  passwordHash String
+  firstName   String
+  lastName    String
+  role        Role
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign keys
+  companyId   String
+  managerId   String?
+
+  // Relations
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  manager     User?       @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  subordinates User[]     @relation("UserManager")
+  expenses    Expense[]   @relation("EmployeeExpense")
+  pendingApprovals Expense[] @relation("CurrentApprover")
+  approvals   Approval[]
+  approvalSteps ApprovalStep[]
+  approvalRules ApprovalRule[]
+  
+  @@map("users")
+}
+
+model Expense {
+  id                        String   @id @default(uuid())
+  amount                    Decimal  @db.Decimal(10, 2)
+  currency                  String   @db.VarChar(3)
+  amountInCompanyCurrency   Decimal  @db.Decimal(10, 2)
+  exchangeRate              Decimal? @db.Decimal(10, 6)
+  category                  String
+  description               String
+  expenseDate               DateTime @db.Date
+  receiptUrl                String?
+  ocrData                   Json?
+  status                    ExpenseStatus @default(PENDING)
+  currentApprovalStep       Int      @default(1)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // Foreign keys
+  employeeId                String
+  companyId                 String
+  currentApproverId         String?
+
+  // Relations
+  employee                  User       @relation("EmployeeExpense", fields: [employeeId], references: [id], onDelete: Cascade)
+  company                   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  currentApprover           User?      @relation("CurrentApprover", fields: [currentApproverId], references: [id], onDelete: SetNull)
+  approvals                 Approval[]
+
+  @@map("expenses")
+}
+
+model ApprovalRule {
+  id                    String   @id @default(uuid())
+  name                  String
+  isManagerApprover     Boolean  @default(false)
+  approvalType          ApprovalType
+  percentageThreshold   Int?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Foreign keys
+  companyId             String
+  specificApproverId    String?
+
+  // Relations
+  company               Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  specificApprover      User?          @relation(fields: [specificApproverId], references: [id], onDelete: SetNull)
+  approvalSteps         ApprovalStep[]
+
+  @@map("approval_rules")
+}
+
+model ApprovalStep {
+  id            String   @id @default(uuid())
+  stepNumber    Int
+  approverRole  String
+  createdAt     DateTime @default(now())
+
+  // Foreign keys
+  approvalRuleId String
+  approverId     String
+
+  // Relations
+  approvalRule  ApprovalRule @relation(fields: [approvalRuleId], references: [id], onDelete: Cascade)
+  approver      User         @relation(fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@map("approval_steps")
+}
+
+model Approval {
+  id          String        @id @default(uuid())
+  stepNumber  Int
+  status      ApprovalStatus
+  comments    String?
+  approvedAt  DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+
+  // Foreign keys
+  expenseId   String
+  approverId  String
+
+  // Relations
+  expense     Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  approver    User          @relation(fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@map("approvals")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalType {
+  SEQUENTIAL
+  PERCENTAGE
+  SPECIFIC_APPROVER
+  HYBRID
+}
+
+enum ApprovalStatus {
+  APPROVED
+  REJECTED
+}

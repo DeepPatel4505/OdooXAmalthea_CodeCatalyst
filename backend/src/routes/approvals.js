@@ -1,0 +1,202 @@
+import express from "express";
+import { body, validationResult } from "express-validator";
+import {
+  authenticateToken,
+  requireManagerOrAdmin,
+} from "../middleware/auth.js";
+import { checkApprovalAccess } from "../middleware/roleCheck.js";
+import prisma from "../config/database.js";
+
+const router = express.Router();
+
+// Apply authentication to all routes
+router.use(authenticateToken);
+
+// Validation middleware
+const validateApprovalDecision = [
+  body("status").isIn(["approved", "rejected"]),
+  body("comments").optional().trim(),
+];
+
+// Get pending approvals
+router.get("/pending", requireManagerOrAdmin, async (req, res) => {
+  try {
+    let where = {
+      companyId: req.user.company_id,
+      status: "PENDING",
+    };
+
+    // Role-based filtering
+    if (req.user.role === "MANAGER") {
+      where.currentApproverId = req.user.id;
+    }
+    // Admin can see all pending approvals
+
+    const pendingApprovals = await prisma.expense.findMany({
+      where,
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+        currentApprover: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        approvals: {
+          include: {
+            approver: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { stepNumber: "asc" },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json({
+      success: true,
+      data: { approvals: pendingApprovals },
+    });
+  } catch (error) {
+    console.error("Get pending approvals error:", error);
+    res.status(500).json({
+      error: true,
+      message: "Failed to retrieve pending approvals",
+      code: "GET_PENDING_APPROVALS_ERROR",
+    });
+  }
+});
+
+// Approve or reject expense
+router.post(
+  "/:expenseId/decision",
+  requireManagerOrAdmin,
+  checkApprovalAccess,
+  validateApprovalDecision,
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          error: true,
+          message: "Validation failed",
+          code: "VALIDATION_ERROR",
+          details: errors.array(),
+        });
+      }
+
+      const { expenseId } = req.params;
+      const { status, comments } = req.body;
+      const expense = req.expense;
+
+      // Create approval record
+      const approval = await prisma.approval.create({
+        data: {
+          expenseId: expense.id,
+          approverId: req.user.id,
+          stepNumber: expense.currentApprovalStep,
+          status: status.toUpperCase(),
+          comments,
+        },
+      });
+
+      if (status === "rejected") {
+        // If rejected, update expense status
+        await prisma.expense.update({
+          where: { id: expense.id },
+          data: {
+            status: "REJECTED",
+            currentApproverId: null,
+          },
+        });
+
+        res.json({
+          success: true,
+          message: "Expense rejected successfully",
+          data: { approval },
+        });
+      } else {
+        // If approved, continue with approval workflow
+        await continueApprovalWorkflow(expense, approval, res);
+      }
+    } catch (error) {
+      console.error("Approval decision error:", error);
+      res.status(500).json({
+        error: true,
+        message: "Failed to process approval decision",
+        code: "APPROVAL_DECISION_ERROR",
+      });
+    }
+  }
+);
+
+// Continue approval workflow logic
+async function continueApprovalWorkflow(expense, approval, res) {
+  throw new Error("Function not implemented");
+}
+
+// Get approval history
+router.get("/:expenseId/history", requireManagerOrAdmin, async (req, res) => {
+  try {
+    const { expenseId } = req.params;
+
+    // Check if user can access this expense
+    const expense = await prisma.expense.findFirst({
+      where: { id: expenseId },
+    });
+
+    if (!expense) {
+      return res.status(404).json({
+        error: true,
+        message: "Expense not found",
+        code: "EXPENSE_NOT_FOUND",
+      });
+    }
+
+    const approvals = await prisma.approval.findMany({
+      where: { expenseId },
+      include: {
+        approver: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: { stepNumber: "asc" },
+    });
+
+    res.json({
+      success: true,
+      data: { approvals },
+    });
+  } catch (error) {
+    console.error("Get approval history error:", error);
+    res.status(500).json({
+      error: true,
+      message: "Failed to retrieve approval history",
+      code: "GET_APPROVAL_HISTORY_ERROR",
+    });
+  }
+});
+
+export default router;
