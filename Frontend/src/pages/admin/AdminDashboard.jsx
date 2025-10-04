@@ -101,7 +101,9 @@ export function AdminDashboard() {
   const { user } = useAuth();
   const [expenseFilter, setExpenseFilter] = useState("all");
   const [expenseSearch, setExpenseSearch] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("all");
   const [expenses, setExpenses] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -127,6 +129,10 @@ export function AdminDashboard() {
 
         if (expensesResponse.success) {
           setExpenses(expensesResponse.data.expenses);
+          
+          // Extract unique categories
+          const categories = [...new Set(expensesResponse.data.expenses.map(expense => expense.category))];
+          setAvailableCategories(categories);
         }
 
         if (statsResponse.success && userStatsResponse.success) {
@@ -185,11 +191,15 @@ export function AdminDashboard() {
       expense.category.toLowerCase().includes(expenseSearch.toLowerCase());
 
     const normalizedStatus = expense.status?.toLowerCase();
-    const matchesFilter =
+    const matchesStatusFilter =
       expenseFilter === "all" ||
       normalizedStatus.includes(expenseFilter.toLowerCase());
 
-    return matchesSearch && matchesFilter;
+    const matchesCategoryFilter =
+      expenseCategory === "all" ||
+      expense.category.toLowerCase() === expenseCategory.toLowerCase();
+
+    return matchesSearch && matchesStatusFilter && matchesCategoryFilter;
   });
 
   const handleApproveExpense = async (expenseId) => {
@@ -207,6 +217,40 @@ export function AdminDashboard() {
       console.log("Rejecting expense:", expenseId);
     } catch (error) {
       console.error("Failed to reject expense:", error);
+    }
+  };
+
+  const handleExportExpense = async () => {
+    try {
+      // Prepare filters based on current state
+      const filters = {};
+      
+      if (expenseSearch) {
+        filters.search = expenseSearch;
+      }
+      
+      if (expenseFilter && expenseFilter !== "all") {
+        filters.status = expenseFilter;
+      }
+
+      if (expenseCategory && expenseCategory !== "all") {
+        filters.category = expenseCategory;
+      }
+
+      // Show loading state (optional)
+      console.log("Exporting expenses with filters:", filters);
+      
+      // Call the export API
+      const result = await expenseAPI.exportToExcel(filters);
+      
+      if (result.success) {
+        console.log(`Excel file downloaded: ${result.filename}`);
+        // You could show a success toast here
+      }
+    } catch (error) {
+      console.error("Failed to export expenses:", error);
+      // You could show an error toast here
+      alert("Failed to export expenses. Please try again.");
     }
   };
 
@@ -353,7 +397,10 @@ export function AdminDashboard() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleExportExpense}
+                className="flex items-center gap-2">
                 <Download className="h-4 w-4" />
                 Export
               </Button>
@@ -382,6 +429,19 @@ export function AdminDashboard() {
                 <SelectItem value="pending">Pending Approval</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {availableCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

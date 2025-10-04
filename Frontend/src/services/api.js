@@ -259,6 +259,47 @@ export const expenseAPI = {
   getStatistics: async (period = "30") => {
     return apiService.get(`/expenses/stats/summary?period=${period}`);
   },
+
+  // Export expenses to Excel
+  exportToExcel: async (filters = {}) => {
+    // Filter out undefined, null, and empty string values
+    const filteredParams = Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => 
+        value !== undefined && value !== null && value !== ""
+      )
+    );
+    const queryParams = new URLSearchParams(filteredParams);
+    
+    const response = await fetch(`${API_BASE_URL}/expenses/export/excel?${queryParams}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+
+    // Get filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filename = contentDisposition 
+      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+      : 'expenses_export.xlsx';
+
+    // Create blob and download
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, filename };
+  },
 };
 
 // Approval API methods
