@@ -29,6 +29,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { companyAPI, currencyAPI } from "@/services/api";
+import { countriesCache } from "@/services/countriesCache";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Default countries list - will be populated from API
@@ -104,9 +105,11 @@ export function CompanySettings() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [companyResponse, countriesResponse] = await Promise.all([
+
+        // Fetch company settings and countries in parallel
+        const [companyResponse, countriesData] = await Promise.all([
           companyAPI.getSettings(),
-          currencyAPI.getCountries(),
+          countriesCache.getCountries(), // Use cached countries
         ]);
 
         if (companyResponse.success) {
@@ -120,11 +123,9 @@ export function CompanySettings() {
           );
         }
 
-        if (
-          countriesResponse.success &&
-          Array.isArray(countriesResponse.data.countries)
-        ) {
-          setCountries(countriesResponse.data.countries);
+        // Set countries from cache (always available)
+        if (Array.isArray(countriesData)) {
+          setCountries(countriesData);
         }
       } catch (error) {
         console.error("Failed to fetch company settings:", error);
