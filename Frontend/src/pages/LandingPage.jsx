@@ -137,10 +137,10 @@ export function LandingPage() {
 
             <div className="mb-6">
               <div className="leading-tight py-2" style={{ lineHeight: "1.1" }}>
-                 <SplitText
-                   text="Streamline Your"
-                   tag="h1"
-                   className="text-5xl md:text-6xl font-bold text-slate-800 dark:text-slate-100"
+                <SplitText
+                  text="Streamline Your"
+                  tag="h1"
+                  className="text-5xl md:text-6xl font-bold text-slate-800 dark:text-slate-100"
                   delay={50}
                   duration={0.8}
                   ease="power3.out"
@@ -151,10 +151,10 @@ export function LandingPage() {
                   rootMargin="-50px"
                 />
                 <br />
-                 <SplitText
-                   text="Expense Management"
-                   tag="h1"
-                   className="text-5xl md:text-6xl font-bold text-blue-600 dark:text-blue-400"
+                <SplitText
+                  text="Expense Management"
+                  tag="h1"
+                  className="text-5xl md:text-6xl font-bold text-blue-600 dark:text-blue-400"
                   delay={100}
                   duration={0.8}
                   ease="power3.out"
