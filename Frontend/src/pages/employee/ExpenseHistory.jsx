@@ -348,9 +348,6 @@ export function ExpenseHistory() {
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>
-            Filter expenses by status and category
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -395,7 +392,7 @@ export function ExpenseHistory() {
       </Card>
 
       {/* Tab-based Interface - Matching Mockup - Only for Employees */}
-      {user?.role !== "ADMIN" && (
+      {user?.role !== "MANAGER" && user.role !== "ADMIN" && (
         <Tabs defaultValue="upload" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload" className="flex items-center gap-2">
