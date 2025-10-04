@@ -146,10 +146,153 @@ router.post(
   }
 );
 
+// Handle user-specific approval workflow
+async function handleUserApprovalWorkflow(expense, approval, userRule, res) {
+  try {
+    if (userRule.approvalType === "SEQUENTIAL") {
+      // Get current step and find next approver
+      const currentStep = expense.currentApprovalStep;
+      const nextApprover = userRule.approvers.find(
+        (approver) => approver.sequenceOrder === currentStep + 1
+      );
+
+      if (!nextApprover) {
+        // No more steps, expense is approved
+        await prisma.expense.update({
+          where: { id: expense.id },
+          data: {
+            status: "APPROVED",
+            currentApproverId: null,
+            currentApprovalStep: 0,
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: "Expense approved successfully",
+          data: { approval },
+        });
+      }
+
+      // Move to next approver
+      await prisma.expense.update({
+        where: { id: expense.id },
+        data: {
+          currentApproverId: nextApprover.approverId,
+          currentApprovalStep: currentStep + 1,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: `Approval recorded. Forwarded to ${nextApprover.approver.firstName} ${nextApprover.approver.lastName}.`,
+        data: { approval },
+      });
+    } else if (userRule.approvalType === "PERCENTAGE") {
+      // Count current approvals and check threshold
+      const totalApprovals = await prisma.approval.count({
+        where: {
+          expenseId: expense.id,
+          status: "APPROVED",
+        },
+      });
+
+      const requiredApprovals = Math.ceil(
+        (userRule.percentageThreshold * userRule.approvers.length) / 100
+      );
+
+      if (totalApprovals >= requiredApprovals) {
+        await prisma.expense.update({
+          where: { id: expense.id },
+          data: {
+            status: "APPROVED",
+            currentApproverId: null,
+            currentApprovalStep: 0,
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: "Expense approved successfully",
+          data: { approval },
+        });
+      }
+
+      // Still need more approvals
+      return res.json({
+        success: true,
+        message: `Approval recorded. ${totalApprovals}/${requiredApprovals} approvals received.`,
+        data: { approval },
+      });
+    }
+
+    // Default: mark as approved
+    await prisma.expense.update({
+      where: { id: expense.id },
+      data: {
+        status: "APPROVED",
+        currentApproverId: null,
+        currentApprovalStep: 0,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Expense approved successfully",
+      data: { approval },
+    });
+  } catch (error) {
+    console.error("User approval workflow error:", error);
+    throw error;
+  }
+}
+
 // Continue approval workflow logic
 async function continueApprovalWorkflow(expense, approval, res) {
   try {
-    // Get active approval rule for the company
+    // First, try to get user-specific approval rule
+    const userApprovalRule = await prisma.userApprovalRule.findFirst({
+      where: {
+        userId: expense.employeeId,
+        isActive: true,
+      },
+      include: {
+        approvers: {
+          include: {
+            approver: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+          orderBy: { sequenceOrder: "asc" },
+        },
+        manager: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (userApprovalRule) {
+      // Use user-specific approval rule
+      return await handleUserApprovalWorkflow(
+        expense,
+        approval,
+        userApprovalRule,
+        res
+      );
+    }
+
+    // Fallback to company-wide approval rule
     const approvalRule = await prisma.approvalRule.findFirst({
       where: {
         companyId: expense.companyId,
@@ -290,10 +433,7 @@ async function continueApprovalWorkflow(expense, approval, res) {
         (approvalRule.percentageThreshold * totalSteps) / 100
       );
 
-      if (
-        hasSpecificApproverApproval ||
-        totalApprovals >= requiredApprovals
-      ) {
+      if (hasSpecificApproverApproval || totalApprovals >= requiredApprovals) {
         await prisma.expense.update({
           where: { id: expense.id },
           data: {

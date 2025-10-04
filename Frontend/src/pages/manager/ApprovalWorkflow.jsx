@@ -34,28 +34,33 @@ export function ApprovalWorkflow() {
   const [rejectionComment, setRejectionComment] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Fetch expense details
+  // Fetch expense details or pending approvals list
   useEffect(() => {
-    const fetchExpense = async () => {
-      if (!id) return;
-
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await expenseAPI.getExpense(id);
-        if (response.success) {
-          setExpense(response.data.expense);
+
+        if (id) {
+          // Fetch specific expense
+          const response = await expenseAPI.getExpense(id);
+          if (response.success) {
+            setExpense(response.data.expense);
+          } else {
+            navigate("/manager/approvals");
+          }
         } else {
+          // No specific expense ID, redirect to main dashboard
           navigate("/manager");
         }
       } catch (error) {
-        console.error("Failed to fetch expense:", error);
+        console.error("Failed to fetch data:", error);
         navigate("/manager");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchExpense();
+    fetchData();
   }, [id, navigate]);
 
   const handleApprove = async () => {
