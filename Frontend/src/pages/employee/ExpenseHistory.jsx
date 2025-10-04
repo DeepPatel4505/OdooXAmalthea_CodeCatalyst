@@ -1,5 +1,4 @@
-import { useState } from "react";
-// import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Card,
@@ -26,73 +25,45 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Search, Filter, Download, Eye, Plus } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { Search, Filter, Download, Eye, Plus, Calendar, User, DollarSign, FileText, Clock, CheckCircle, XCircle } from "lucide-react";
+import { expenseAPI } from "@/services/api";
 
-// Mock data
-const mockExpenses = [
-    {
-        id: "1",
-        amount: 125.5,
-        category: "Meals & Entertainment",
-        description: "Client dinner at Restaurant ABC",
-        date: "2024-01-15",
-        status: "approved",
-        currency: "USD",
-        submittedAt: "2024-01-16T09:30:00Z",
-        approvedAt: "2024-01-16T14:20:00Z",
-        approver: "Jane Smith",
-    },
-    {
-        id: "2",
-        amount: 89.99,
-        category: "Transportation",
-        description: "Taxi to airport",
-        date: "2024-01-14",
-        status: "submitted",
-        currency: "USD",
-        submittedAt: "2024-01-15T08:15:00Z",
-    },
-    {
-        id: "3",
-        amount: 45.0,
-        category: "Office Supplies",
-        description: "Stationery and notebooks",
-        date: "2024-01-13",
-        status: "rejected",
-        currency: "USD",
-        submittedAt: "2024-01-14T10:45:00Z",
-        rejectedAt: "2024-01-14T16:30:00Z",
-        approver: "Jane Smith",
-        rejectionReason: "Insufficient documentation",
-    },
-    {
-        id: "4",
-        amount: 245.0,
-        category: "Travel",
-        description: "Hotel accommodation for conference",
-        date: "2024-01-12",
-        status: "approved",
-        currency: "USD",
-        submittedAt: "2024-01-13T11:20:00Z",
-        approvedAt: "2024-01-13T15:45:00Z",
-        approver: "Mike Johnson",
-    },
-    {
-        id: "5",
-        amount: 67.5,
-        category: "Software",
-        description: "Monthly subscription for design tool",
-        date: "2024-01-10",
-        status: "draft",
-        currency: "USD",
-        submittedAt: "2024-01-11T09:00:00Z",
-        approvedAt: "2024-01-11T12:15:00Z",
-        approver: "Jane Smith",
-    },
-];
+// Status mapping from backend to frontend
+const mapExpenseStatus = (status) => {
+    switch (status) {
+        case "DRAFT":
+            return "draft";
+        case "PENDING":
+            return "submitted";
+        case "APPROVED":
+            return "approved";
+        case "REJECTED":
+            return "rejected";
+        default:
+            return status.toLowerCase();
+    }
+};
+
+// Reverse mapping from frontend to backend
+const mapStatusToBackend = (status) => {
+    switch (status) {
+        case "draft":
+            return "draft";
+        case "submitted":
+            return "pending";
+        case "approved":
+            return "approved";
+        case "rejected":
+            return "rejected";
+        default:
+            return status;
+    }
+};
 
 const STATUS_FILTERS = [
     { value: "all", label: "All Statuses" },
+    { value: "draft", label: "Draft" },
     { value: "submitted", label: "Submitted" },
     { value: "approved", label: "Approved" },
     { value: "rejected", label: "Rejected" },
@@ -111,33 +82,60 @@ export function ExpenseHistory() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
+    const [expenses, setExpenses] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedExpense, setSelectedExpense] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const navigate = useNavigate();
 
+    // Fetch expenses from API
+    useEffect(() => {
+        const fetchExpenses = async () => {
+            try {
+                setIsLoading(true);
+                
+                // Build query parameters object, only including defined values
+                const queryParams = {};
+                if (searchTerm && searchTerm.trim()) {
+                    queryParams.search = searchTerm.trim();
+                }
+                if (statusFilter && statusFilter !== "all") {
+                    queryParams.status = mapStatusToBackend(statusFilter);
+                }
+                if (categoryFilter && categoryFilter !== "all") {
+                    queryParams.category = categoryFilter;
+                }
+                
+                const response = await expenseAPI.getExpenses(queryParams);
+                setExpenses(response.data.expenses);
+            } catch (error) {
+                console.error("Failed to fetch expenses:", error);
+                setExpenses([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchExpenses();
+    }, [searchTerm, statusFilter, categoryFilter]);
+
     const handleViewExpense = (expense) => {
-        // If draft → edit page, else open view (you can later customize view mode)
-        if (expense.status === "draft" || expense.status === "submitted") {
+        const mappedStatus = mapExpenseStatus(expense.status);
+        
+        // If draft or submitted → edit page, else open view modal
+        if (mappedStatus === "draft" || mappedStatus === "submitted") {
             navigate(`/employee/submit/${expense.id}`);
         } else {
-            navigate(`/employee/submit/${expense.id}/view`);
+            setSelectedExpense(expense);
+            setIsModalOpen(true);
         }
     };
 
-    const filteredExpenses = mockExpenses.filter((expense) => {
-        const matchesSearch =
-            expense.description
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-            expense.category.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStatus =
-            statusFilter === "all" || expense.status === statusFilter;
-        const matchesCategory =
-            categoryFilter === "all" || expense.category === categoryFilter;
-
-        return matchesSearch && matchesStatus && matchesCategory;
-    });
+    const filteredExpenses = expenses;
 
     const getStatusBadge = (status) => {
-        switch (status) {
+        const mappedStatus = mapExpenseStatus(status);
+        switch (mappedStatus) {
             case "approved":
                 return (
                     <Badge
@@ -174,12 +172,12 @@ export function ExpenseHistory() {
     };
 
     const totalAmount = filteredExpenses.reduce(
-        (sum, expense) => sum + expense.amount,
+        (sum, expense) => sum + parseFloat(expense.amount),
         0
     );
     const approvedAmount = filteredExpenses
-        .filter((expense) => expense.status === "approved")
-        .reduce((sum, expense) => sum + expense.amount, 0);
+        .filter((expense) => mapExpenseStatus(expense.status) === "approved")
+        .reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
 
     return (
         <div className="space-y-6">
@@ -248,14 +246,14 @@ export function ExpenseHistory() {
                         <div className="text-2xl font-bold text-yellow-600">
                             $
                             {filteredExpenses
-                                .filter((e) => e.status === "submitted")
-                                .reduce((sum, e) => sum + e.amount, 0)
+                                .filter((e) => mapExpenseStatus(e.status) === "submitted")
+                                .reduce((sum, e) => sum + parseFloat(e.amount), 0)
                                 .toFixed(2)}
                         </div>
                         <p className="text-xs text-muted-foreground">
                             {
                                 filteredExpenses.filter(
-                                    (e) => e.status === "pending"
+                                    (e) => mapExpenseStatus(e.status) === "submitted"
                                 ).length
                             }{" "}
                             expenses
@@ -345,74 +343,207 @@ export function ExpenseHistory() {
                         </TableHeader>
 
                         <TableBody>
-                            {filteredExpenses.map((expense) => (
-                                <TableRow
-                                    key={expense.id}
-                                    onClick={() => handleViewExpense(expense)}
-                                    className="cursor-pointer hover:bg-muted/50"
-                                >
-                                    {/* Employee */}
-                                    <TableCell className="font-medium text-sm">
-                                        {expense.employee || "Sarah"}
-                                    </TableCell>
-
-                                    {/* Description */}
-                                    <TableCell>
-                                        <div>
-                                            <p className="font-medium">
-                                                {expense.description}
-                                            </p>
-                                        </div>
-                                    </TableCell>
-
-                                    {/* Date */}
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {new Date(
-                                            expense.date
-                                        ).toLocaleDateString("en-GB", {
-                                            day: "numeric",
-                                            month: "short",
-                                            year: "numeric",
-                                        })}
-                                    </TableCell>
-
-                                    {/* Category */}
-                                    <TableCell className="text-sm">
-                                        {expense.category}
-                                    </TableCell>
-
-                                    {/* Paid By */}
-                                    <TableCell className="text-sm">
-                                        {expense.paidBy || "Self"}
-                                    </TableCell>
-
-                                    {/* Remarks */}
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {expense.remarks || "—"}
-                                    </TableCell>
-
-                                    {/* Amount */}
-                                    <TableCell className="font-semibold">
-                                        {expense.amount.toLocaleString(
-                                            undefined,
-                                            {
-                                                style: "currency",
-                                                currency:
-                                                    expense.currency || "USD",
-                                            }
-                                        )}
-                                    </TableCell>
-
-                                    {/* Status */}
-                                    <TableCell>
-                                        {getStatusBadge(expense.status)}
+                            {isLoading ? (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="text-center py-8">
+                                        Loading expenses...
                                     </TableCell>
                                 </TableRow>
-                            ))}
+                            ) : filteredExpenses.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={8} className="text-center py-8">
+                                        No expenses found
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredExpenses.map((expense) => (
+                                    <TableRow
+                                        key={expense.id}
+                                        onClick={() => handleViewExpense(expense)}
+                                        className="cursor-pointer hover:bg-muted/50"
+                                    >
+                                        {/* Employee */}
+                                        <TableCell className="font-medium text-sm">
+                                            {expense.employee ? `${expense.employee.firstName} ${expense.employee.lastName}` : "Unknown"}
+                                        </TableCell>
+
+                                        {/* Description */}
+                                        <TableCell>
+                                            <div>
+                                                <p className="font-medium">
+                                                    {expense.description}
+                                                </p>
+                                            </div>
+                                        </TableCell>
+
+                                        {/* Date */}
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {new Date(
+                                                expense.expenseDate
+                                            ).toLocaleDateString("en-GB", {
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                            })}
+                                        </TableCell>
+
+                                        {/* Category */}
+                                        <TableCell className="text-sm">
+                                            {expense.category}
+                                        </TableCell>
+
+                                        {/* Paid By */}
+                                        <TableCell className="text-sm">
+                                            Self
+                                        </TableCell>
+
+                                        {/* Remarks */}
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            —
+                                        </TableCell>
+
+                                        {/* Amount */}
+                                        <TableCell className="font-semibold">
+                                            {parseFloat(expense.amount).toLocaleString(
+                                                undefined,
+                                                {
+                                                    style: "currency",
+                                                    currency: expense.currency || "USD",
+                                                }
+                                            )}
+                                        </TableCell>
+
+                                        {/* Status */}
+                                        <TableCell>
+                                            {getStatusBadge(expense.status)}
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* Expense Detail Modal */}
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title="Expense Details"
+                className="max-w-2xl"
+            >
+                {selectedExpense && (
+                    <div className="space-y-6">
+                        {/* Header with amount and status */}
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div>
+                                    <h3 className="text-2xl font-bold">
+                                        {parseFloat(selectedExpense.amount).toLocaleString(
+                                            undefined,
+                                            {
+                                                style: "currency",
+                                                currency: selectedExpense.currency || "USD",
+                                            }
+                                        )}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {selectedExpense.currency}
+                                    </p>
+                                </div>
+                            </div>
+                            {getStatusBadge(selectedExpense.status)}
+                        </div>
+
+                        {/* Expense details grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <FileText className="h-4 w-4" />
+                                    <span>Description</span>
+                                </div>
+                                <p className="font-medium">{selectedExpense.description}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <DollarSign className="h-4 w-4" />
+                                    <span>Category</span>
+                                </div>
+                                <p className="font-medium">{selectedExpense.category}</p>
+                            </div>
+
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Calendar className="h-4 w-4" />
+                                    <span>Expense Date</span>
+                                </div>
+                                <p className="font-medium">
+                                    {new Date(selectedExpense.expenseDate).toLocaleDateString()}
+                                </p>
+                            </div>
+
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Clock className="h-4 w-4" />
+                                    <span>Submitted</span>
+                                </div>
+                                <p className="font-medium">
+                                    {new Date(selectedExpense.createdAt).toLocaleDateString()}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Employee details */}
+                        {selectedExpense.employee && (
+                            <div className="border-t pt-4">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <User className="h-4 w-4" />
+                                        <span>Employee</span>
+                                    </div>
+                                    <p className="font-medium">
+                                        {selectedExpense.employee.firstName} {selectedExpense.employee.lastName}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {selectedExpense.employee.email}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Approval details */}
+                        {selectedExpense.currentApprover && (
+                            <div className="border-t pt-4">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <User className="h-4 w-4" />
+                                        <span>Current Approver</span>
+                                    </div>
+                                    <p className="font-medium">
+                                        {selectedExpense.currentApprover.firstName} {selectedExpense.currentApprover.lastName}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {selectedExpense.currentApprover.email}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-4 border-t">
+                            <Button variant="outline" className="flex-1">
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Receipt
+                            </Button>
+                            <Button variant="outline" className="flex-1">
+                                <FileText className="h-4 w-4 mr-2" />
+                                Download
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 }

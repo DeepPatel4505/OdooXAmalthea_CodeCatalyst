@@ -33,6 +33,38 @@ class ApiService {
     return headers;
   }
 
+  // Clean data to remove circular references
+  cleanData(obj) {
+    if (obj === null || typeof obj !== "object") {
+      return obj;
+    }
+
+    if (obj instanceof Date) {
+      return obj.toISOString();
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.cleanData(item));
+    }
+
+    const cleaned = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+        // Skip DOM elements and React components
+        if (value && typeof value === "object" && 
+            (value.constructor.name === "HTMLInputElement" || 
+             value.constructor.name === "HTMLFormElement" ||
+             value.constructor.name === "FiberNode" ||
+             value.$$typeof)) {
+          continue;
+        }
+        cleaned[key] = this.cleanData(value);
+      }
+    }
+    return cleaned;
+  }
+
   // Generic request method
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
@@ -66,17 +98,19 @@ class ApiService {
 
   // POST request
   async post(endpoint, data) {
+    const cleanData = this.cleanData(data);
     return this.request(endpoint, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanData),
     });
   }
 
   // PUT request
   async put(endpoint, data) {
+    const cleanData = this.cleanData(data);
     return this.request(endpoint, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanData),
     });
   }
 
@@ -191,7 +225,13 @@ export const userAPI = {
 export const expenseAPI = {
   // Get expenses
   getExpenses: async (params = {}) => {
-    const queryParams = new URLSearchParams(params);
+    // Filter out undefined, null, and empty string values
+    const filteredParams = Object.fromEntries(
+      Object.entries(params).filter(([_, value]) => 
+        value !== undefined && value !== null && value !== ""
+      )
+    );
+    const queryParams = new URLSearchParams(filteredParams);
     return apiService.get(`/expenses?${queryParams}`);
   },
 

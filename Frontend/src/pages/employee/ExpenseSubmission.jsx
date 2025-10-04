@@ -20,7 +20,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, CheckCircle } from "lucide-react";
+import { Upload, FileText, CheckCircle, Save } from "lucide-react";
+import { expenseAPI } from "@/services/api";
 
 const EXPENSE_CATEGORIES = [
   "Meals & Entertainment",
@@ -90,26 +91,28 @@ export function ExpenseSubmission() {
     const fetchExpense = async () => {
       setIsLoading(true);
       try {
-        // TODO: Replace mock with real API: GET /api/expenses/:id
-        const mockData = {
-          amount: 5000,
-          category: "Food",
-          description: "Restaurant bill",
-          date: "2025-10-04",
-          currency: "INR",
-        };
-
-        // Populate form
-        reset(mockData);
+        const response = await expenseAPI.getExpense(id);
+        const expense = response.data.expense;
+        
+        // Populate form with expense data
+        reset({
+          amount: parseFloat(expense.amount),
+          category: expense.category,
+          description: expense.description,
+          date: new Date(expense.expenseDate).toISOString().split("T")[0],
+          currency: expense.currency,
+        });
       } catch (error) {
         console.error("Failed to load expense:", error);
+        // Navigate back to history if expense not found
+        navigate("/employee/expenses");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchExpense();
-  }, [id, isEditMode, reset]);
+  }, [id, isEditMode, reset, navigate]);
 
   // 🟢 Step 2: Handle currency conversion (same as before)
   useEffect(() => {
@@ -172,24 +175,68 @@ export function ExpenseSubmission() {
   };
 
   // 🟢 Step 4: Submit (create or update)
-  const onSubmit = async (data) => {
+  const onSubmit = async (data, status = "PENDING") => {
     setIsSubmitting(true);
     try {
-      if (isEditMode) {
-        // PUT /api/expenses/:id
-        console.log("Updating expense:", id, data);
-      } else {
-        // POST /api/expenses
-        console.log("Creating new expense:", data);
+      // Create a clean, serializable object
+      const expenseData = {
+        amount: parseFloat(data.amount),
+        currency: data.currency,
+        category: data.category,
+        description: data.description,
+        expenseDate: new Date(data.date).toISOString(), // Convert to ISO8601 format
+        receiptUrl: uploadedFile ? uploadedFile.name : null,
+        ocrData: ocrData ? {
+          amount: ocrData.amount,
+          date: ocrData.date,
+          merchant: ocrData.merchant,
+          category: ocrData.category
+        } : null,
+        status: status,
+      };
+
+      // Validate required fields
+      if (!expenseData.amount || !expenseData.currency || !expenseData.category || !expenseData.description || !expenseData.expenseDate) {
+        throw new Error("Please fill in all required fields");
       }
 
-      await new Promise((res) => setTimeout(res, 800)); // mock delay
-      navigate("/employee");
+      console.log("Submitting expense data:", expenseData);
+
+      if (isEditMode) {
+        // Update existing expense
+        await expenseAPI.updateExpense(id, expenseData);
+        } else {
+          // Create new expense
+          await expenseAPI.createExpense(expenseData);
+        }
+
+      navigate("/employee/expenses");
     } catch (error) {
       console.error("Error saving expense:", error);
+      // Show user-friendly error message
+      alert(`Failed to save expense: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Handle save as draft
+  const handleSaveAsDraft = async (data) => {
+    // Determine the appropriate status based on current expense status
+    let targetStatus = "DRAFT";
+    
+    if (isEditMode) {
+      // If editing an existing expense, keep it as draft if it was draft,
+      // otherwise set to pending (submitted) for approval
+      targetStatus = "DRAFT";
+    }
+    
+    await onSubmit(data, targetStatus);
+  };
+
+  // Handle form submission with proper data extraction
+  const handleFormSubmit = async (data) => {
+    await onSubmit(data, "PENDING");
   };
 
   if (isLoading) {
@@ -208,7 +255,7 @@ export function ExpenseSubmission() {
         </h1>
         <p className="text-muted-foreground">
           {isEditMode
-            ? "Update your existing expense details"
+            ? "Update your expense details. You can save as draft or submit for approval."
             : "Submit a new expense for reimbursement"}
         </p>
       </div>
@@ -280,12 +327,12 @@ export function ExpenseSubmission() {
           <CardTitle>Expense Details</CardTitle>
           <CardDescription>
             {isEditMode
-              ? "Modify your expense information"
+              ? "Modify your expense information. Use 'Update as Draft' to save changes without submitting, or 'Update & Submit' to submit for approval."
               : "Fill in the expense information"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
             {/* Amount & Currency */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -386,20 +433,35 @@ export function ExpenseSubmission() {
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex gap-4 pt-4">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
-                  ? isEditMode
-                    ? "Updating..."
-                    : "Submitting..."
-                  : isEditMode
-                  ? "Update Expense"
-                  : "Submit Expense"}
-              </Button>
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting
+                    ? isEditMode
+                      ? "Updating..."
+                      : "Submitting..."
+                    : isEditMode
+                    ? "Update & Submit"
+                    : "Submit Expense"}
+                </Button>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSubmit(handleSaveAsDraft)}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {isEditMode ? "Update as Draft" : "Save as Draft"}
+                </Button>
+              </div>
+              
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate("/employee")}
+                onClick={() => navigate("/employee/expenses")}
+                className="sm:ml-auto"
               >
                 Cancel
               </Button>
