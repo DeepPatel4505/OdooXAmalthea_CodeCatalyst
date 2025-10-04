@@ -10,6 +10,9 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Layout } from "@/components/layout/Layout";
 import { LandingPage } from "@/pages/LandingPage";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Receipt } from "lucide-react";
 // import { AuthPage } from "@/pages/AuthPage";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
@@ -61,27 +64,53 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Sign In</h1>
-          <p className="text-muted-foreground mt-2">
-            Welcome back! Please sign in to your account
-          </p>
-        </div>
-
-        <LoginForm onSuccess={handleAuthSuccess} />
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            Don't have an account?
-            <button
-              onClick={() => navigate("/signup")}
-              className="ml-1 text-primary hover:underline"
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      {/* Header */}
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              ExpenseFlow
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/landing")}
+              className="text-muted-foreground hover:text-foreground"
             >
-              Sign up
-            </button>
-          </p>
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-center p-4 flex-1">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Sign In</h1>
+            <p className="text-muted-foreground mt-2">
+              Welcome back! Please sign in to your account
+            </p>
+          </div>
+
+          <LoginForm onSuccess={handleAuthSuccess} />
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?
+              <button
+                onClick={() => navigate("/signup")}
+                className="ml-1 text-primary hover:underline"
+              >
+                Sign up
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -105,27 +134,53 @@ function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Sign Up</h1>
-          <p className="text-muted-foreground mt-2">
-            Create your account to get started
-          </p>
-        </div>
-
-        <SignupForm onSuccess={handleAuthSuccess} />
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            Already have an account?
-            <button
-              onClick={() => navigate("/login")}
-              className="ml-1 text-primary hover:underline"
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      {/* Header */}
+      <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              ExpenseFlow
+            </span>
+          </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/landing")}
+              className="text-muted-foreground hover:text-foreground"
             >
-              Sign in
-            </button>
-          </p>
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-center p-4 flex-1">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold">Sign Up</h1>
+            <p className="text-muted-foreground mt-2">
+              Create your account to get started
+            </p>
+          </div>
+
+          <SignupForm onSuccess={handleAuthSuccess} />
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?
+              <button
+                onClick={() => navigate("/login")}
+                className="ml-1 text-primary hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>
