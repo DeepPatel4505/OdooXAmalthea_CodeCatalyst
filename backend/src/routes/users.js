@@ -1,6 +1,6 @@
 import express from "express";
 import { body, validationResult, query } from "express-validator";
-import { authenticateToken, requireAdmin } from "../middleware/auth.js";
+import { authenticateToken, requireAdmin, requireManagerOrAdmin } from "../middleware/auth.js";
 import prisma from "../config/database.js";
 import bcrypt from "bcryptjs";
 import { sendPasswordEmail } from "../services/emailHandler.js";
@@ -118,7 +118,7 @@ router.get(
 );
 
 // Get user statistics (Admin only)
-router.get("/stats", requireAdmin, async (req, res) => {
+router.get("/stats", requireManagerOrAdmin, async (req, res) => {
   try {
     const where = {
       companyId: req.user.company_id,

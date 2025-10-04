@@ -115,7 +115,7 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {mockStats.pendingApprovals}
+              {stats.pendingApprovals}
             </div>
             <p className="text-xs text-muted-foreground">
               Awaiting your review
@@ -129,7 +129,7 @@ export function ManagerDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockStats.teamMembers}</div>
+            <div className="text-2xl font-bold">{stats.teamMembers}</div>
             <p className="text-xs text-muted-foreground">
               Under your management
             </p>
@@ -145,7 +145,7 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {mockStats.totalApproved}
+              {stats.totalApproved}
             </div>
             <p className="text-xs text-muted-foreground">Expenses approved</p>
           </CardContent>
@@ -158,10 +158,10 @@ export function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${mockStats.usedBudget.toLocaleString()}
+              ${stats.usedBudget.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              of ${mockStats.monthlyBudget.toLocaleString()} used
+              of ${stats.monthlyBudget.toLocaleString()} used
             </p>
             <div className="mt-2 w-full bg-muted rounded-full h-2">
               <div
