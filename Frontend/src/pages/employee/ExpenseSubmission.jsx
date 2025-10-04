@@ -1,94 +1,167 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Upload, FileText, CheckCircle } from 'lucide-react'
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Upload, FileText, CheckCircle } from "lucide-react";
 
 const EXPENSE_CATEGORIES = [
-  'Meals & Entertainment',
-  'Transportation',
-  'Office Supplies',
-  'Travel',
-  'Training',
-  'Software',
-  'Hardware',
-  'Other'
-]
+  "Meals & Entertainment",
+  "Transportation",
+  "Office Supplies",
+  "Travel",
+  "Training",
+  "Software",
+  "Hardware",
+  "Other",
+];
 
 const CURRENCIES = [
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-]
+  { code: "USD", symbol: "$", name: "US Dollar" },
+  { code: "EUR", symbol: "€", name: "Euro" },
+  { code: "GBP", symbol: "£", name: "British Pound" },
+  { code: "JPY", symbol: "¥", name: "Japanese Yen" },
+  { code: "CAD", symbol: "C$", name: "Canadian Dollar" },
+  { code: "AUD", symbol: "A$", name: "Australian Dollar" },
+  { code: "INR", symbol: "₹", name: "Indian Rupee" },
+  { code: "BRL", symbol: "R$", name: "Brazilian Real" },
+  { code: "CNY", symbol: "¥", name: "Chinese Yuan" },
+  { code: "CHF", symbol: "CHF", name: "Swiss Franc" },
+];
+
+// Mock company currency (would come from context/API)
+const COMPANY_CURRENCY = "USD";
 
 export function ExpenseSubmission() {
-  const navigate = useNavigate()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [uploadedFile, setUploadedFile] = useState(null)
-  const [ocrData, setOcrData] = useState(null)
-  const [isProcessingOcr, setIsProcessingOcr] = useState(false)
-  
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
-    defaultValues: {
-      amount: '',
-      category: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      currency: 'USD'
-    }
-  })
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [ocrData, setOcrData] = useState(null);
+  const [isProcessingOcr, setIsProcessingOcr] = useState(false);
+  const [convertedAmount, setConvertedAmount] = useState(null);
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const [isConverting, setIsConverting] = useState(false);
 
-  const selectedCurrency = watch('currency')
-  const currency = CURRENCIES.find(c => c.code === selectedCurrency)
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      amount: "",
+      category: "",
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+      currency: "USD",
+    },
+  });
+
+  const selectedCurrency = watch("currency");
+  const amount = watch("amount");
+  const currency = CURRENCIES.find((c) => c.code === selectedCurrency);
+
+  // Currency conversion effect
+  React.useEffect(() => {
+    const convertCurrency = async () => {
+      if (
+        !amount ||
+        !selectedCurrency ||
+        selectedCurrency === COMPANY_CURRENCY
+      ) {
+        setConvertedAmount(null);
+        setExchangeRate(null);
+        return;
+      }
+
+      setIsConverting(true);
+      try {
+        // TODO: Connect to real currency API
+        // For now, use mock conversion rates
+        const mockRates = {
+          EUR: 0.85,
+          GBP: 0.73,
+          JPY: 110.0,
+          CAD: 1.25,
+          AUD: 1.35,
+          INR: 75.0,
+          BRL: 5.2,
+          CNY: 6.45,
+          CHF: 0.92,
+        };
+
+        const rate = mockRates[selectedCurrency] || 1;
+        const converted = parseFloat(amount) * rate;
+        setExchangeRate(rate);
+        setConvertedAmount(converted);
+      } catch (error) {
+        console.error("Currency conversion failed:", error);
+      } finally {
+        setIsConverting(false);
+      }
+    };
+
+    convertCurrency();
+  }, [amount, selectedCurrency]);
 
   const handleFileUpload = async (event) => {
-    const file = event.target.files[0]
-    if (!file) return
+    const file = event.target.files[0];
+    if (!file) return;
 
-    setUploadedFile(file)
-    setIsProcessingOcr(true)
+    setUploadedFile(file);
+    setIsProcessingOcr(true);
 
     // TODO: Connect to OCR API
     // Simulate OCR processing
     setTimeout(() => {
       const mockOcrData = {
-        amount: '125.50',
-        date: '2024-01-15',
-        merchant: 'Restaurant ABC',
-        category: 'Meals & Entertainment'
-      }
-      setOcrData(mockOcrData)
-      setIsProcessingOcr(false)
+        amount: "125.50",
+        date: "2024-01-15",
+        merchant: "Restaurant ABC",
+        category: "Meals & Entertainment",
+      };
+      setOcrData(mockOcrData);
+      setIsProcessingOcr(false);
 
       // Auto-fill form with OCR data
-      setValue('amount', mockOcrData.amount)
-      setValue('date', mockOcrData.date)
-      setValue('description', mockOcrData.merchant)
-      setValue('category', mockOcrData.category)
-    }, 2000)
-  }
+      setValue("amount", mockOcrData.amount);
+      setValue("date", mockOcrData.date);
+      setValue("description", mockOcrData.merchant);
+      setValue("category", mockOcrData.category);
+    }, 2000);
+  };
 
   const onSubmit = async (data) => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
       // TODO: Connect to API
-      console.log('Submitting expense:', data)
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      navigate('/employee')
+      console.log("Submitting expense:", data);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      navigate("/employee");
     } catch (error) {
-      console.error('Submission failed:', error)
+      console.error("Submission failed:", error);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -132,7 +205,10 @@ export function ExpenseSubmission() {
                 <Badge variant="secondary">Processing...</Badge>
               )}
               {ocrData && (
-                <Badge variant="default" className="bg-green-100 text-green-800">
+                <Badge
+                  variant="default"
+                  className="bg-green-100 text-green-800"
+                >
                   <CheckCircle className="h-3 w-3 mr-1" />
                   OCR Complete
                 </Badge>
@@ -142,7 +218,9 @@ export function ExpenseSubmission() {
 
           {ocrData && (
             <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <h4 className="font-medium text-green-800 mb-2">Auto-filled from receipt:</h4>
+              <h4 className="font-medium text-green-800 mb-2">
+                Auto-filled from receipt:
+              </h4>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>Amount: {ocrData.amount}</div>
                 <div>Date: {ocrData.date}</div>
@@ -157,9 +235,7 @@ export function ExpenseSubmission() {
       <Card>
         <CardHeader>
           <CardTitle>Expense Details</CardTitle>
-          <CardDescription>
-            Fill in the expense information
-          </CardDescription>
+          <CardDescription>Fill in the expense information</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -175,21 +251,41 @@ export function ExpenseSubmission() {
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    {...register('amount', { 
-                      required: 'Amount is required',
-                      min: { value: 0.01, message: 'Amount must be greater than 0' }
+                    {...register("amount", {
+                      required: "Amount is required",
+                      min: {
+                        value: 0.01,
+                        message: "Amount must be greater than 0",
+                      },
                     })}
                     className="rounded-l-none"
                   />
                 </div>
                 {errors.amount && (
-                  <p className="text-sm text-destructive">{errors.amount.message}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.amount.message}
+                  </p>
+                )}
+                {convertedAmount && selectedCurrency !== COMPANY_CURRENCY && (
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800">
+                      Converted to {COMPANY_CURRENCY}: $
+                      {convertedAmount.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Exchange rate: 1 {selectedCurrency} = {exchangeRate}{" "}
+                      {COMPANY_CURRENCY}
+                    </p>
+                    {isConverting && (
+                      <p className="text-xs text-blue-600">Converting...</p>
+                    )}
+                  </div>
                 )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="currency">Currency</Label>
-                <Select onValueChange={(value) => setValue('currency', value)}>
+                <Select onValueChange={(value) => setValue("currency", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
@@ -206,7 +302,7 @@ export function ExpenseSubmission() {
 
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select onValueChange={(value) => setValue('category', value)}>
+              <Select onValueChange={(value) => setValue("category", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
@@ -228,10 +324,14 @@ export function ExpenseSubmission() {
               <Textarea
                 id="description"
                 placeholder="Describe the expense..."
-                {...register('description', { required: 'Description is required' })}
+                {...register("description", {
+                  required: "Description is required",
+                })}
               />
               {errors.description && (
-                <p className="text-sm text-destructive">{errors.description.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.description.message}
+                </p>
               )}
             </div>
 
@@ -240,18 +340,24 @@ export function ExpenseSubmission() {
               <Input
                 id="date"
                 type="date"
-                {...register('date', { required: 'Date is required' })}
+                {...register("date", { required: "Date is required" })}
               />
               {errors.date && (
-                <p className="text-sm text-destructive">{errors.date.message}</p>
+                <p className="text-sm text-destructive">
+                  {errors.date.message}
+                </p>
               )}
             </div>
 
             <div className="flex gap-4 pt-4">
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Submitting...' : 'Submit Expense'}
+                {isSubmitting ? "Submitting..." : "Submit Expense"}
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate('/employee')}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/employee")}
+              >
                 Cancel
               </Button>
             </div>
@@ -259,5 +365,5 @@ export function ExpenseSubmission() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
