@@ -161,27 +161,6 @@ export function LoginForm({ onSuccess }) {
           </div>
         )}
 
-        {!showForgotPassword && (
-          <div className="mt-4 text-sm text-muted-foreground">
-            <p>Demo accounts:</p>
-            <p>
-              <strong>TechCorp Solutions:</strong>
-            </p>
-            <p>• admin@techcorp.com (Admin)</p>
-            <p>• manager1@techcorp.com (Manager)</p>
-            <p>• employee1@techcorp.com (Employee)</p>
-            <p>
-              <strong>Global Industries Inc:</strong>
-            </p>
-            <p>• admin@globalinc.com (Admin)</p>
-            <p>• manager@globalinc.com (Manager)</p>
-            <p>• employee@globalinc.com (Employee)</p>
-            <p>
-              <strong>Password for all accounts:</strong> password123
-            </p>
-          </div>
-        )}
-
         <div className="mt-4 text-center">
           {!showForgotPassword ? (
             <button
