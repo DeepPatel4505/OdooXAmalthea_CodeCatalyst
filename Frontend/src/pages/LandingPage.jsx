@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { motion } from "framer-motion";
+import SplitText from "@/components/SplitText";
 import {
   PageWrapper,
   AnimatedButton,
@@ -74,9 +75,9 @@ export function LandingPage() {
 
   return (
     <PageWrapper>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/30 dark:from-slate-900 dark:via-slate-800/40 dark:to-slate-700/20 transition-all duration-500">
+      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50/40 to-indigo-50/50 dark:from-slate-800 dark:via-slate-700/60 dark:to-slate-600/40 transition-all duration-500">
         {/* Header */}
-        <header className="border-b border-slate-200/50 dark:border-slate-700/50 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm sticky top-0 z-50">
+        <header className="border-b border-slate-200/50 dark:border-slate-600/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <motion.div
               className="flex items-center space-x-2"
@@ -134,29 +135,51 @@ export function LandingPage() {
               </Badge>
             </motion.div>
 
-            <motion.h1
-              className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-slate-700 via-slate-600 to-slate-800 dark:from-slate-200 dark:via-slate-100 dark:to-slate-300 bg-clip-text text-transparent"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              Streamline Your
-              <br />
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Expense Management
-              </span>
-            </motion.h1>
+            <div className="mb-6">
+              <div className="leading-tight py-2" style={{ lineHeight: "1.1" }}>
+                 <SplitText
+                   text="Streamline Your"
+                   tag="h1"
+                   className="text-5xl md:text-6xl font-bold text-slate-800 dark:text-slate-100"
+                  delay={50}
+                  duration={0.8}
+                  ease="power3.out"
+                  splitType="chars"
+                  from={{ opacity: 0, y: 60, rotationX: -90 }}
+                  to={{ opacity: 1, y: 0, rotationX: 0 }}
+                  threshold={0.1}
+                  rootMargin="-50px"
+                />
+                <br />
+                 <SplitText
+                   text="Expense Management"
+                   tag="h1"
+                   className="text-5xl md:text-6xl font-bold text-blue-600 dark:text-blue-400"
+                  delay={100}
+                  duration={0.8}
+                  ease="power3.out"
+                  splitType="chars"
+                  from={{ opacity: 0, y: 60, rotationX: -90 }}
+                  to={{ opacity: 1, y: 0, rotationX: 0 }}
+                  threshold={0.1}
+                  rootMargin="-50px"
+                />
+              </div>
+            </div>
 
-            <motion.p
-              className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-            >
-              Transform your expense workflow with intelligent automation,
-              real-time approvals, and comprehensive analytics. Built for modern
-              businesses that value efficiency and transparency.
-            </motion.p>
+            <SplitText
+              text="Transform your expense workflow with intelligent automation, real-time approvals, and comprehensive analytics. Built for modern businesses that value efficiency and transparency."
+              tag="p"
+              className="text-xl text-slate-700 dark:text-slate-200 mb-8 max-w-2xl mx-auto"
+              delay={80}
+              duration={0.6}
+              ease="power2.out"
+              splitType="words"
+              from={{ opacity: 0, y: 30 }}
+              to={{ opacity: 1, y: 0 }}
+              threshold={0.1}
+              rootMargin="-50px"
+            />
 
             <motion.div
               className="flex flex-col sm:flex-row gap-4 justify-center mb-12"
@@ -199,16 +222,35 @@ export function LandingPage() {
         </section>
 
         {/* Features Section */}
-        <section className="py-20 px-4 bg-gradient-to-br from-slate-100/40 via-blue-50/20 to-indigo-50/30 dark:from-slate-800/40 dark:via-slate-700/20 dark:to-slate-600/30 transition-all duration-500">
+        <section className="py-20 px-4 bg-gradient-to-br from-slate-50/60 via-blue-50/30 to-indigo-50/40 dark:from-slate-700/50 dark:via-slate-600/30 dark:to-slate-500/40 transition-all duration-500">
           <div className="container mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold mb-4">
-                Why Choose ExpenseFlow?
-              </h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Powerful features designed to simplify expense management and
-                accelerate your business growth.
-              </p>
+              <SplitText
+                text="Why Choose ExpenseFlow?"
+                tag="h2"
+                className="text-4xl font-bold mb-4"
+                delay={60}
+                duration={0.7}
+                ease="power3.out"
+                splitType="words"
+                from={{ opacity: 0, y: 40, scale: 0.8 }}
+                to={{ opacity: 1, y: 0, scale: 1 }}
+                threshold={0.1}
+                rootMargin="-100px"
+              />
+              {/* <SplitText
+                text="Powerful features designed to simplify expense management and accelerate your business growth."
+                tag="p"
+                className="text-xl text-muted-foreground max-w-2xl mx-auto"
+                delay={100}
+                duration={0.6}
+                ease="power2.out"
+                splitType="words"
+                from={{ opacity: 0, y: 25 }}
+                to={{ opacity: 1, y: 0 }}
+                threshold={0.1}
+                rootMargin="-100px"
+              /> */}
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -219,12 +261,24 @@ export function LandingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
                 >
-                  <AnimatedCard className="p-6 transition-all duration-300 border border-slate-200/50 dark:border-slate-700/50 shadow-lg bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-slate-800/80 hover:shadow-xl">
+                  <AnimatedCard className="p-6 transition-all duration-300 border border-slate-200/60 dark:border-slate-600/60 shadow-lg bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm hover:bg-white/90 dark:hover:bg-slate-700/90 hover:shadow-xl">
                     <div className="flex items-center mb-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400 mr-4">
                         {feature.icon}
                       </div>
-                      <h3 className="text-xl font-semibold">{feature.title}</h3>
+                      <SplitText
+                        text={feature.title}
+                        tag="h3"
+                        className="text-xl font-semibold"
+                        delay={30}
+                        duration={0.5}
+                        ease="power2.out"
+                        splitType="words"
+                        from={{ opacity: 0, y: 20 }}
+                        to={{ opacity: 1, y: 0 }}
+                        threshold={0.1}
+                        rootMargin="-50px"
+                      />
                     </div>
                     <p className="text-muted-foreground">
                       {feature.description}
@@ -237,18 +291,36 @@ export function LandingPage() {
         </section>
 
         {/* Benefits Section */}
-        <section className="py-20 px-4 bg-gradient-to-br from-slate-100/30 via-blue-50/20 to-indigo-50/25 dark:from-slate-800/20 dark:via-slate-700/15 dark:to-slate-600/25 transition-all duration-500">
+        <section className="py-20 px-4 bg-gradient-to-br from-slate-100/50 via-blue-50/30 to-indigo-50/35 dark:from-slate-700/40 dark:via-slate-600/25 dark:to-slate-500/30 transition-all duration-500">
           <div className="container mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div>
-                <h2 className="text-4xl font-bold mb-6">
-                  Built for Modern Teams
-                </h2>
-                <p className="text-xl text-muted-foreground mb-8">
-                  ExpenseFlow integrates seamlessly with your existing workflow,
-                  providing a unified platform for all expense-related
-                  activities.
-                </p>
+                <SplitText
+                  text="Built for Modern Teams"
+                  tag="h2"
+                  className="text-4xl font-bold mb-6"
+                  delay={50}
+                  duration={0.8}
+                  ease="power3.out"
+                  splitType="words"
+                  from={{ opacity: 0, y: 50, rotationY: -15 }}
+                  to={{ opacity: 1, y: 0, rotationY: 0 }}
+                  threshold={0.1}
+                  rootMargin="-100px"
+                />
+                <SplitText
+                  text="ExpenseFlow integrates seamlessly with your existing workflow, providing a unified platform for all expense-related activities."
+                  tag="p"
+                  className="text-xl text-muted-foreground mb-8"
+                  delay={80}
+                  duration={0.6}
+                  ease="power2.out"
+                  splitType="words"
+                  from={{ opacity: 0, y: 30 }}
+                  to={{ opacity: 1, y: 0 }}
+                  threshold={0.1}
+                  rootMargin="-100px"
+                />
 
                 <div className="space-y-4">
                   <div className="flex items-center">
@@ -279,7 +351,7 @@ export function LandingPage() {
               </div>
 
               <div className="relative">
-                <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-slate-200/50 dark:border-slate-700/50">
+                <div className="bg-white/70 dark:bg-slate-600/70 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-slate-200/60 dark:border-slate-500/60">
                   <div className="flex items-center mb-6">
                     <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
                     <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
@@ -303,13 +375,33 @@ export function LandingPage() {
         {/* CTA Section */}
         <section className="py-20 px-4 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 transition-all duration-500">
           <div className="container mx-auto text-center">
-            <h2 className="text-4xl font-bold text-white mb-6">
-              Ready to Transform Your Expense Management?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of companies already using ExpenseFlow to
-              streamline their expense processes and save valuable time.
-            </p>
+            <SplitText
+              text="Ready to Transform Your Expense Management?"
+              tag="h2"
+              className="text-4xl font-bold text-white mb-6"
+              delay={40}
+              duration={0.8}
+              ease="power3.out"
+              splitType="words"
+              from={{ opacity: 0, y: 60, scale: 0.7 }}
+              to={{ opacity: 1, y: 0, scale: 1 }}
+              threshold={0.1}
+              rootMargin="-50px"
+            />
+            <br />
+            <SplitText
+              text="Join thousands of companies already using ExpenseFlow to streamline their expense processes and save valuable time."
+              tag="p"
+              className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto"
+              delay={80}
+              duration={0.6}
+              ease="power2.out"
+              splitType="words"
+              from={{ opacity: 0, y: 30 }}
+              to={{ opacity: 1, y: 0 }}
+              threshold={0.1}
+              rootMargin="-50px"
+            />
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 size="lg"
@@ -331,7 +423,7 @@ export function LandingPage() {
         </section>
 
         {/* Footer */}
-        <footer className="bg-gradient-to-b from-slate-100/80 to-slate-200/80 dark:from-slate-800/80 dark:to-slate-900/80 py-12 px-4 transition-all duration-500">
+        <footer className="bg-gradient-to-b from-slate-200/90 to-slate-300/90 dark:from-slate-700/90 dark:to-slate-800/90 py-12 px-4 transition-all duration-500">
           <div className="container mx-auto">
             <div className="grid md:grid-cols-4 gap-8">
               <div>
