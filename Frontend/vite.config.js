@@ -15,7 +15,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['@reduxjs/toolkit', 'recharts']
+    exclude: ['@reduxjs/toolkit']
   },
   build: {
     commonjsOptions: {
