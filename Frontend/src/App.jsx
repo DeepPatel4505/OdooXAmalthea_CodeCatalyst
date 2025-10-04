@@ -10,10 +10,15 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Toaster } from "sonner";
 import { Layout } from "@/components/layout/Layout";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LandingPage } from "@/pages/LandingPage";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { AnimatedButton } from "@/components/ui/animations";
+import { ToastProvider } from "@/components/ui/feedback";
 import { Receipt } from "lucide-react";
+import ExpenseForm from "@/pages/ExpenseForm";
+import ExpenseApprovals from "@/pages/ExpenseApprovals";
 // import { AuthPage } from "@/pages/AuthPage";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
@@ -242,6 +247,10 @@ function AppContent() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        
+        {/* New UI Routes */}
+        <Route path="/expenses" element={<ExpenseForm />} />
+        <Route path="/approvals" element={<ExpenseApprovals />} />
 
         {/* Employee Routes */}
         <Route
@@ -402,10 +411,12 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
+    <ThemeProvider defaultTheme="light">
       <AuthProvider>
-        <AppContent />
-        <Toaster position="top-right" richColors />
+        <ToastProvider>
+          <AppContent />
+          <Toaster position="top-right" richColors />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );
