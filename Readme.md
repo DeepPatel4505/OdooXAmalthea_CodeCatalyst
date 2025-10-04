@@ -1,4 +1,4 @@
-# 🚀 Team CodeCatalyst_Team-28
+# 🚀 Team CodeCatalyst
 
 **Team Lead:** Krishnapal Singh Jadeja  
 **Team Members:**  
