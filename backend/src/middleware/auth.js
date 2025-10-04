@@ -48,6 +48,7 @@ export const authenticateToken = async (req, res, next) => {
       company_name: user.company.name,
       default_currency: user.company.defaultCurrency,
       country: user.company.country,
+      company_id: user.companyId,
     };
 
     next();
@@ -87,7 +88,10 @@ export const requireRole = (allowedRoles) => {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role)) {
+    // Convert user role to lowercase for comparison
+    const userRole = req.user.role.toLowerCase();
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
         error: true,
         message: "Insufficient permissions",

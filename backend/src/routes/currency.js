@@ -1,5 +1,5 @@
 import express from "express";
-import { query, validationResult } from "express-validator";
+import { query, body, validationResult } from "express-validator";
 import { authenticateToken } from "../middleware/auth.js";
 import currencyService from "../services/currencyService.js";
 
@@ -87,9 +87,9 @@ router.get(
 router.post(
   "/convert",
   [
-    query("amount").isFloat({ min: 0.01 }),
-    query("from").isLength({ min: 3, max: 6 }),
-    query("to").isLength({ min: 3, max: 6 }),
+    body("amount").isFloat({ min: 0.01 }),
+    body("from").isLength({ min: 3, max: 6 }),
+    body("to").isLength({ min: 3, max: 6 }),
   ],
   async (req, res) => {
     try {
@@ -103,7 +103,7 @@ router.post(
         });
       }
 
-      const { amount, from, to } = req.query;
+      const { amount, from, to } = req.body;
       const conversion = await currencyService.convertCurrency(
         amount,
         from,

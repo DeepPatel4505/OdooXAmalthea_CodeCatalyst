@@ -1,8 +1,8 @@
 import express from "express";
 import { body, validationResult, query } from "express-validator";
 import { authenticateToken, requireAdmin } from "../middleware/auth.js";
-import { checkCompanyAccess } from "../middleware/roleCheck.js";
 import prisma from "../config/database.js";
+import bcrypt from "bcryptjs";
 
 const router = express.Router();
 
@@ -184,6 +184,15 @@ router.post("/", requireAdmin, validateCreateUser, async (req, res) => {
 
     const { email, password, firstName, lastName, role, managerId } = req.body;
 
+    // console.log("Creating user with data:", {
+    //   email,
+    //   firstName,
+    //   lastName,
+    //   role,
+    //   managerId,
+    //   companyId: req.user.company_id,
+    // });
+
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -217,9 +226,10 @@ router.post("/", requireAdmin, validateCreateUser, async (req, res) => {
     }
 
     // Hash password
-    const bcrypt = require("bcryptjs");
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    // console.log("About to create user in database...");
 
     // Create user
     const user = await prisma.user.create({
@@ -244,6 +254,8 @@ router.post("/", requireAdmin, validateCreateUser, async (req, res) => {
       },
     });
 
+    // console.log("User created successfully:", user);
+
     res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -251,6 +263,11 @@ router.post("/", requireAdmin, validateCreateUser, async (req, res) => {
     });
   } catch (error) {
     console.error("Create user error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
     res.status(500).json({
       error: true,
       message: "Failed to create user",

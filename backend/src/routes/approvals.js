@@ -148,7 +148,197 @@ router.post(
 
 // Continue approval workflow logic
 async function continueApprovalWorkflow(expense, approval, res) {
-  throw new Error("Function not implemented");
+  try {
+    // Get active approval rule for the company
+    const approvalRule = await prisma.approvalRule.findFirst({
+      where: {
+        companyId: expense.companyId,
+        isActive: true,
+      },
+      include: {
+        approvalSteps: { orderBy: { stepNumber: "asc" } },
+        specificApprover: true,
+      },
+    });
+
+    if (!approvalRule) {
+      // No approval rule, mark as approved
+      await prisma.expense.update({
+        where: { id: expense.id },
+        data: {
+          status: "APPROVED",
+          currentApproverId: null,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: "Expense approved successfully",
+        data: { approval },
+      });
+    }
+
+    // Handle different approval types
+    if (approvalRule.approvalType === "SPECIFIC_APPROVER") {
+      // If specific approver approved, expense is fully approved
+      await prisma.expense.update({
+        where: { id: expense.id },
+        data: {
+          status: "APPROVED",
+          currentApproverId: null,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: "Expense approved successfully",
+        data: { approval },
+      });
+    } else if (approvalRule.approvalType === "PERCENTAGE") {
+      // Count current approvals and check threshold
+      const totalApprovals = await prisma.approval.count({
+        where: {
+          expenseId: expense.id,
+          status: "APPROVED",
+        },
+      });
+
+      const totalSteps = approvalRule.approvalSteps.length;
+      const requiredApprovals = Math.ceil(
+        (approvalRule.percentageThreshold * totalSteps) / 100
+      );
+
+      if (totalApprovals >= requiredApprovals) {
+        await prisma.expense.update({
+          where: { id: expense.id },
+          data: {
+            status: "APPROVED",
+            currentApproverId: null,
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: "Expense approved successfully",
+          data: { approval },
+        });
+      }
+
+      // Still need more approvals
+      return res.json({
+        success: true,
+        message: `Approval recorded. ${totalApprovals}/${requiredApprovals} approvals received.`,
+        data: { approval },
+      });
+    } else if (approvalRule.approvalType === "SEQUENTIAL") {
+      // Move to next step
+      const currentStep = expense.currentApprovalStep;
+      const nextStep = approvalRule.approvalSteps.find(
+        (step) => step.stepNumber === currentStep + 1
+      );
+
+      if (!nextStep) {
+        // No more steps, expense is approved
+        await prisma.expense.update({
+          where: { id: expense.id },
+          data: {
+            status: "APPROVED",
+            currentApproverId: null,
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: "Expense approved successfully",
+          data: { approval },
+        });
+      }
+
+      // Move to next approver
+      await prisma.expense.update({
+        where: { id: expense.id },
+        data: {
+          currentApproverId: nextStep.approverId,
+          currentApprovalStep: currentStep + 1,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: `Approval recorded. Forwarded to step ${currentStep + 1}.`,
+        data: { approval },
+      });
+    } else if (approvalRule.approvalType === "HYBRID") {
+      // Handle hybrid logic (percentage OR specific approver)
+      const totalApprovals = await prisma.approval.count({
+        where: {
+          expenseId: expense.id,
+          status: "APPROVED",
+        },
+      });
+
+      const hasSpecificApproverApproval = await prisma.approval.findFirst({
+        where: {
+          expenseId: expense.id,
+          approverId: approvalRule.specificApproverId,
+          status: "APPROVED",
+        },
+      });
+
+      const totalSteps = approvalRule.approvalSteps.length;
+      const requiredApprovals = Math.ceil(
+        (approvalRule.percentageThreshold * totalSteps) / 100
+      );
+
+      if (
+        hasSpecificApproverApproval ||
+        totalApprovals >= requiredApprovals
+      ) {
+        await prisma.expense.update({
+          where: { id: expense.id },
+          data: {
+            status: "APPROVED",
+            currentApproverId: null,
+          },
+        });
+
+        return res.json({
+          success: true,
+          message: "Expense approved successfully",
+          data: { approval },
+        });
+      }
+
+      // Still need more approvals
+      return res.json({
+        success: true,
+        message: `Approval recorded. Progress: ${totalApprovals}/${requiredApprovals} approvals.`,
+        data: { approval },
+      });
+    }
+
+    // Default fallback - mark as approved
+    await prisma.expense.update({
+      where: { id: expense.id },
+      data: {
+        status: "APPROVED",
+        currentApproverId: null,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Expense approved successfully",
+      data: { approval },
+    });
+  } catch (error) {
+    console.error("Continue approval workflow error:", error);
+    return res.status(500).json({
+      error: true,
+      message: "Failed to continue approval workflow",
+      code: "WORKFLOW_ERROR",
+    });
+  }
 }
 
 // Get approval history

@@ -14,7 +14,10 @@ export const checkCompanyAccess = async (req, res, next) => {
     }
 
     // Admin can access any company, others can only access their own
-    if (req.user.role === "admin" || req.user.company_id === companyId) {
+    if (
+      req.user.role.toLowerCase() === "admin" ||
+      req.user.company_id === companyId
+    ) {
       return next();
     }
 
@@ -47,7 +50,7 @@ export const checkExpenseAccess = async (req, res, next) => {
     }
 
     // Admin can access any expense
-    if (req.user.role === "admin") {
+    if (req.user.role.toLowerCase() === "admin") {
       return next();
     }
 
@@ -72,7 +75,10 @@ export const checkExpenseAccess = async (req, res, next) => {
     }
 
     // Employee can only access their own expenses
-    if (req.user.role === "EMPLOYEE" && expense.employeeId !== req.user.id) {
+    if (
+      req.user.role.toLowerCase() === "employee" &&
+      expense.employeeId !== req.user.id
+    ) {
       return res.status(403).json({
         error: true,
         message: "Access denied to this expense",
@@ -81,7 +87,7 @@ export const checkExpenseAccess = async (req, res, next) => {
     }
 
     // Manager can access their team's expenses
-    if (req.user.role === "MANAGER") {
+    if (req.user.role.toLowerCase() === "manager") {
       // Check if the expense belongs to their direct report
       const teamMember = await prisma.user.findFirst({
         where: {
@@ -138,7 +144,7 @@ export const checkApprovalAccess = async (req, res, next) => {
     }
 
     // Admin can approve any expense
-    if (req.user.role === "ADMIN") {
+    if (req.user.role.toLowerCase() === "admin") {
       req.expense = expense;
       return next();
     }

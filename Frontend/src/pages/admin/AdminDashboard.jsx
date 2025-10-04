@@ -1,8 +1,27 @@
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Users, Receipt, Settings, BarChart3, DollarSign, Clock, CheckCircle } from 'lucide-react'
+import { Users, Receipt, Settings, BarChart3, DollarSign, Clock, CheckCircle, Search, Filter, Download } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select'
+import { expenseAPI, userAPI } from '@/services/api'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Mock data
 const mockStats = {
@@ -40,6 +59,46 @@ const mockRecentActivity = [
   }
 ]
 
+// Mock expense data for admin view
+const mockExpenses = [
+  {
+    id: '1',
+    employee: 'Sarah Davis',
+    description: 'Restaurant bill',
+    date: '2024-01-15',
+    category: 'Food',
+    amount: '1000',
+    currency: 'INR',
+    status: 'Submitted',
+    currentApprover: 'Manager',
+    submittedAt: '2024-01-15T18:30:00Z'
+  },
+  {
+    id: '2',
+    employee: 'John Smith',
+    description: 'Office supplies',
+    date: '2024-01-16',
+    category: 'Office',
+    amount: '450',
+    currency: 'USD',
+    status: 'Approved',
+    currentApprover: 'Completed',
+    submittedAt: '2024-01-16T09:15:00Z'
+  },
+  {
+    id: '3',
+    employee: 'Mike Wilson',
+    description: 'Transportation',
+    date: '2024-01-14',
+    category: 'Travel',
+    amount: '89.50',
+    currency: 'EUR',
+    status: 'Pending Approval',
+    currentApprover: 'Finance',
+    submittedAt: '2024-01-14T14:20:00Z'
+  }
+]
+
 const getActivityIcon = (type) => {
   switch (type) {
     case 'expense_approved':
@@ -67,6 +126,87 @@ const getActivityBadge = (status) => {
 }
 
 export function AdminDashboard() {
+  const { user } = useAuth()
+  const [expenseFilter, setExpenseFilter] = useState('all')
+  const [expenseSearch, setExpenseSearch] = useState('')
+  const [expenses, setExpenses] = useState([])
+  const [stats, setStats] = useState(mockStats)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Fetch expenses and statistics in parallel
+        const [expensesResponse, statsResponse] = await Promise.all([
+          expenseAPI.getExpenses({ page: 1, limit: 50 }),
+          expenseAPI.getStatistics()
+        ])
+
+        if (expensesResponse.success) {
+          setExpenses(expensesResponse.data.expenses)
+        }
+
+        if (statsResponse.success) {
+          setStats(statsResponse.data.statistics)
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (user?.role === 'ADMIN') {
+      fetchData()
+    }
+  }, [user])
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'PENDING':
+        return <Badge variant="default" className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>
+      case 'APPROVED':
+        return <Badge variant="default" className="bg-green-100 text-green-800">Approved</Badge>
+      case 'REJECTED':
+        return <Badge variant="destructive">Rejected</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const filteredExpenses = expenses.filter(expense => {
+    const employeeName = `${expense.employee?.firstName || ''} ${expense.employee?.lastName || ''}`.trim()
+    const matchesSearch = employeeName.toLowerCase().includes(expenseSearch.toLowerCase()) ||
+                         expense.description.toLowerCase().includes(expenseSearch.toLowerCase()) ||
+                         expense.category.toLowerCase().includes(expenseSearch.toLowerCase())
+    
+    const normalizedStatus = expense.status?.toLowerCase()
+    const matchesFilter = expenseFilter === 'all' || 
+                         normalizedStatus.includes(expenseFilter.toLowerCase())
+    
+    return matchesSearch && matchesFilter
+  })
+
+  const handleApproveExpense = async (expenseId) => {
+    try {
+      // TODO: Implement approval via approval API
+      console.log('Approving expense:', expenseId)
+    } catch (error) {
+      console.error('Failed to approve expense:', error)
+    }
+  }
+
+  const handleRejectExpense = async (expenseId) => {
+    try {
+      // TODO: Implement rejection via approval API
+      console.log('Rejecting expense:', expenseId)
+    } catch (error) {
+      console.error('Failed to reject expense:', error)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -188,6 +328,129 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Expense Management */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Expense Management</CardTitle>
+              <CardDescription>
+                View and manage all expense submissions
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Filters */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search expenses..."
+                value={expenseSearch}
+                onChange={(e) => setExpenseSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={expenseFilter} onValueChange={setExpenseFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="pending">Pending Approval</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Expense Table */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Employee</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Current Approver</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredExpenses.length > 0 ? (
+                filteredExpenses.map((expense) => (
+                  <TableRow key={expense.id}>
+                    <TableCell className="font-medium">
+                      {`${expense.employee?.firstName || ''} ${expense.employee?.lastName || ''}`.trim()}
+                    </TableCell>
+                    <TableCell>{expense.description}</TableCell>
+                    <TableCell>{new Date(expense.expenseDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{expense.category}</TableCell>
+                    <TableCell className="font-mono">
+                      {expense.amount} {expense.currency}
+                      {expense.amountInCompanyCurrency && expense.currency !== user?.company?.defaultCurrency && (
+                        <div className="text-xs text-muted-foreground">
+                          ({expense.amountInCompanyCurrency} {user?.company?.defaultCurrency})
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(expense.status)}</TableCell>
+                    <TableCell>
+                      {expense.currentApprover ? 
+                        `${expense.currentApprover?.firstName || ''} ${expense.currentApprover?.lastName || ''}`.trim() 
+                        : 'N/A'
+                      }
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          View
+                        </Button>
+                        {expense.status === 'PENDING' && (
+                          <>
+                            <Button 
+                              variant="default" 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApproveExpense(expense.id)}
+                            >
+                              Approve
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleRejectExpense(expense.id)}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    {isLoading ? 'Loading expenses...' : 'No expenses found'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Recent Activity */}
       <Card>

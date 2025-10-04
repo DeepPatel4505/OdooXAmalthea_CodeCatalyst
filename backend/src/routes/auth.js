@@ -248,6 +248,67 @@ router.get("/profile", authenticateToken, async (req, res) => {
   }
 });
 
+// Password reset request endpoint
+router.post("/forgot-password", [
+  body("email").isEmail().normalizeEmail()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: true,
+        message: "Validation failed",
+        code: "VALIDATION_ERROR",
+        details: errors.array(),
+      });
+    }
+
+    const { email } = req.body;
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, email: true, firstName: true, lastName: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: true,
+        message: "User not found",
+        code: "USER_NOT_FOUND",
+      });
+    }
+
+    // Generate new random password
+    const randomPassword = Math.random().toString(36).slice(-8);
+    const passwordHash = await bcrypt.hash(randomPassword, 12);
+
+    // Update user password
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash }
+    });
+
+    // In a real implementation, you would send this via email
+    // For now, we'll return it in the response for testing
+    res.json({
+      success: true,
+      message: "Password reset successful. Please check your email for the new password.",
+      data: {
+        newPassword: randomPassword // Remove this in production
+      }
+    });
+
+  } catch (error) {
+    console.error("Password reset error:", error);
+    res.status(500).json({
+      error: true,
+      message: "Password reset failed",
+      code: "PASSWORD_RESET_ERROR",
+    });
+  }
+});
+
 // Logout endpoint (client-side token removal)
 router.post("/logout", authenticateToken, (req, res) => {
   res.json({

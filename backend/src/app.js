@@ -11,6 +11,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import expenseRoutes from "./routes/expenses.js";
 import approvalRoutes from "./routes/approvals.js";
+import approvalRulesRoutes from "./routes/approval-rules.js";
 import currencyRoutes from "./routes/currency.js";
 import ocrRoutes from "./routes/ocr.js";
 
@@ -22,7 +23,11 @@ app.use(helmet());
 // CORS configuration
 app.use(
   cors({
-    origin: config.FRONTEND_URL,
+    origin: [
+      config.FRONTEND_URL,
+      "http://localhost:3000", // React default
+      "http://localhost:5173", // Vite default
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -65,6 +70,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/approvals", approvalRoutes);
+app.use("/api/approval-rules", approvalRulesRoutes);
 app.use("/api/currency", currencyRoutes);
 app.use("/api/ocr", ocrRoutes);
 

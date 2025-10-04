@@ -14,25 +14,11 @@ export function LoginForm({ onSuccess }) {
   const onSubmit = async (data) => {
     setIsLoading(true)
     try {
-      // TODO: Connect to API
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Mock user data based on email
-      const mockUser = {
-        id: '1',
-        email: data.email,
-        name: data.email.split('@')[0],
-        role: data.email.includes('admin') ? 'admin' : 
-              data.email.includes('manager') ? 'manager' : 'employee',
-        company: 'Acme Corp',
-        currency: 'USD'
-      }
-      
-      login(mockUser)
+      await login(data)
       onSuccess?.()
     } catch (error) {
       console.error('Login failed:', error)
+      // Error feedback would be shown to user via toast or inline message
     } finally {
       setIsLoading(false)
     }
