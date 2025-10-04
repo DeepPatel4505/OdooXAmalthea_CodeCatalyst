@@ -45,6 +45,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { expenseAPI } from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Status mapping from backend to frontend
 const mapExpenseStatus = (status) => {
@@ -96,6 +97,7 @@ const CATEGORY_FILTERS = [
 ];
 
 export function ExpenseHistory() {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -275,8 +277,8 @@ export function ExpenseHistory() {
       </div>
 
       {/* Tab-based Interface - Matching Mockup */}
-      <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="new" className="w-full">
+        {user.role === "employee" && <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload" className="flex items-center gap-2">
             <Upload className="h-4 w-4" />
             Upload
@@ -285,8 +287,8 @@ export function ExpenseHistory() {
             <Plus className="h-4 w-4" />
             New
           </TabsTrigger>
-        </TabsList>
-
+        </TabsList>}
+        {user.role === "employee" && 
         <TabsContent value="upload" className="space-y-6">
           <Card>
             <CardHeader>
@@ -309,7 +311,9 @@ export function ExpenseHistory() {
             </CardContent>
           </Card>
         </TabsContent>
+        }
 
+        
         <TabsContent value="new" className="space-y-6">
           {/* Summary Cards */}
           <div className="grid gap-4 md:grid-cols-3">
