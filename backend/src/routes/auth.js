@@ -114,6 +114,13 @@ router.post("/signup", validateSignup, async (req, res) => {
       { expiresIn: config.JWT_EXPIRES_IN }
     );
 
+    res.cookie("token" , token , {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: "strict",
+    })
+
     res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -192,6 +199,14 @@ router.post("/login", validateLogin, async (req, res) => {
       config.JWT_SECRET,
       { expiresIn: config.JWT_EXPIRES_IN }
     );
+
+
+    res.cookie("token" , token , {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: "strict",
+    })
 
     res.json({
       success: true,
@@ -311,6 +326,7 @@ router.post("/forgot-password", [
 
 // Logout endpoint (client-side token removal)
 router.post("/logout", authenticateToken, (req, res) => {
+  res.clearCookie("token");
   res.json({
     success: true,
     message: "Logout successful",

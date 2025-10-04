@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import morgan from "morgan";
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import { config } from "./config/environment.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
@@ -18,8 +18,10 @@ import companyRoutes from "./routes/company.js";
 
 const app = express();
 
+
 // Security middleware
 app.use(helmet());
+app.use(cookieParser());
 
 // CORS configuration
 app.use(
@@ -36,19 +38,19 @@ app.use(
 );
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: config.RATE_LIMIT_WINDOW_MS,
-  max: config.RATE_LIMIT_MAX_REQUESTS,
-  message: {
-    error: true,
-    message: "Too many requests from this IP, please try again later.",
-    code: "RATE_LIMIT_EXCEEDED",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// const limiter = rateLimit({
+//   windowMs: config.RATE_LIMIT_WINDOW_MS,
+//   max: config.RATE_LIMIT_MAX_REQUESTS,
+//   message: {
+//     error: true,
+//     message: "Too many requests from this IP, please try again later.",
+//     code: "RATE_LIMIT_EXCEEDED",
+//   },
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
 
-app.use(limiter);
+// app.use(limiter);
 
 // Logging
 // app.use(morgan("combined"));
