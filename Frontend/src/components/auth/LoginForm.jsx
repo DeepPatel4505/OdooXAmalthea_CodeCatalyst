@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 export function LoginForm({ onSuccess }) {
   const { login, forgotPassword } = useAuth();
@@ -32,9 +33,11 @@ export function LoginForm({ onSuccess }) {
     try {
       await login(data);
       onSuccess?.();
+      toast.success("Login successful!");
     } catch (error) {
       console.error("Login failed:", error);
       setError(error.message || "Login failed. Please check your credentials.");
+      toast.error(error.message || "Login failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -49,9 +52,11 @@ export function LoginForm({ onSuccess }) {
       setForgotPasswordMessage(
         "Password reset instructions have been sent to your email."
       );
+      toast.success("Password reset instructions sent to your email!");
     } catch (error) {
       console.error("Forgot password failed:", error);
       setError(error.message || "Failed to send password reset email.");
+      toast.error(error.message || "Failed to send password reset email.");
     } finally {
       setIsForgotPasswordLoading(false);
     }

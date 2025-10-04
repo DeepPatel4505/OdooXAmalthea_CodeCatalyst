@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { userAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // Remove mock data - will be replaced with real API data
 
@@ -165,10 +166,12 @@ export function UserManagement() {
         }
         setShowAddUserModal(false);
         reset();
+        toast.success("User created successfully!");
       }
     } catch (error) {
       console.error("Failed to create user:", error);
       setError(error.message || "Failed to create user");
+      toast.error(error.message || "Failed to create user");
     } finally {
       setIsSubmitting(false);
     }
@@ -200,10 +203,12 @@ export function UserManagement() {
         setShowEditUserModal(false);
         setSelectedUser(null);
         reset();
+        toast.success("User updated successfully!");
       }
     } catch (error) {
       console.error("Failed to update user:", error);
       setError(error.message || "Failed to update user");
+      toast.error(error.message || "Failed to update user");
     } finally {
       setIsSubmitting(false);
     }
@@ -232,10 +237,12 @@ export function UserManagement() {
         if (usersResponse.success) {
           setUsers(usersResponse.data.users);
         }
+        toast.success("User deleted successfully!");
       }
     } catch (error) {
       console.error("Failed to delete user:", error);
       setError(error.message || "Failed to delete user");
+      toast.error(error.message || "Failed to delete user");
     }
   };
 

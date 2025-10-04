@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { AnimatedButton } from "@/components/ui/animations";
+import { toast } from "sonner";
 import { FormCard, FormField, FormSubmitButton } from "@/components/ui/form-components";
 import { Check, AlertCircle, Upload } from "lucide-react";
 
@@ -42,11 +43,13 @@ export default function ExpenseForm() {
       
       // Success state
       setSuccess(true);
+      toast.success("Expense submitted successfully!");
       setTimeout(() => {
         navigate("/expenses");
       }, 1500);
     } catch (err) {
       setError("Failed to submit expense. Please try again.");
+      toast.error("Failed to submit expense. Please try again.");
     } finally {
       setLoading(false);
     }

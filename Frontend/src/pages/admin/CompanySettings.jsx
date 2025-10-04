@@ -31,6 +31,7 @@ import {
 import { companyAPI, currencyAPI } from "@/services/api";
 import { countriesCache } from "@/services/countriesCache";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 // Default countries list - will be populated from API
 const DEFAULT_COUNTRIES = [
@@ -150,12 +151,16 @@ export function CompanySettings() {
       if (response.success) {
         setCompany(response.data.company);
         setHasChanges(false);
-        // Show success message (you could add a toast here)
-        console.log("Company settings updated successfully");
+        toast.success("Company settings updated successfully!");
       }
     } catch (error) {
       console.error("Failed to save settings:", error);
       setError(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to save settings"
+      );
+      toast.error(
         error.response?.data?.message ||
           error.message ||
           "Failed to save settings"
