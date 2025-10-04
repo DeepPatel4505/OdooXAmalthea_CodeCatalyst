@@ -116,6 +116,52 @@ router.get(
   }
 );
 
+// Get user statistics (Admin only)
+router.get("/stats", requireAdmin, async (req, res) => {
+  try {
+    const where = {
+      companyId: req.user.company_id,
+    };
+
+    const [
+      totalUsers,
+      activeUsers,
+      inactiveUsers,
+      adminUsers,
+      managerUsers,
+      employeeUsers,
+    ] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.count({ where: { ...where, isActive: true } }),
+      prisma.user.count({ where: { ...where, isActive: false } }),
+      prisma.user.count({ where: { ...where, role: "ADMIN" } }),
+      prisma.user.count({ where: { ...where, role: "MANAGER" } }),
+      prisma.user.count({ where: { ...where, role: "EMPLOYEE" } }),
+    ]);
+
+    const statistics = {
+      totalUsers,
+      activeUsers,
+      inactiveUsers,
+      adminUsers,
+      managerUsers,
+      employeeUsers,
+    };
+
+    res.json({
+      success: true,
+      data: { statistics },
+    });
+  } catch (error) {
+    console.error("Get user statistics error:", error);
+    res.status(500).json({
+      error: true,
+      message: "Failed to retrieve user statistics",
+      code: "GET_USER_STATISTICS_ERROR",
+    });
+  }
+});
+
 // Get single user
 router.get("/:userId", requireAdmin, async (req, res) => {
   try {
@@ -442,52 +488,6 @@ router.get("/managers/list", requireAdmin, async (req, res) => {
       error: true,
       message: "Failed to retrieve managers",
       code: "GET_MANAGERS_ERROR",
-    });
-  }
-});
-
-// Get user statistics (Admin only)
-router.get("/stats", requireAdmin, async (req, res) => {
-  try {
-    const where = {
-      companyId: req.user.company_id,
-    };
-
-    const [
-      totalUsers,
-      activeUsers,
-      inactiveUsers,
-      adminUsers,
-      managerUsers,
-      employeeUsers,
-    ] = await Promise.all([
-      prisma.user.count({ where }),
-      prisma.user.count({ where: { ...where, isActive: true } }),
-      prisma.user.count({ where: { ...where, isActive: false } }),
-      prisma.user.count({ where: { ...where, role: "ADMIN" } }),
-      prisma.user.count({ where: { ...where, role: "MANAGER" } }),
-      prisma.user.count({ where: { ...where, role: "EMPLOYEE" } }),
-    ]);
-
-    const statistics = {
-      totalUsers,
-      activeUsers,
-      inactiveUsers,
-      adminUsers,
-      managerUsers,
-      employeeUsers,
-    };
-
-    res.json({
-      success: true,
-      data: { statistics },
-    });
-  } catch (error) {
-    console.error("Get user statistics error:", error);
-    res.status(500).json({
-      error: true,
-      message: "Failed to retrieve user statistics",
-      code: "GET_USER_STATISTICS_ERROR",
     });
   }
 });
