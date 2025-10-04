@@ -38,7 +38,7 @@ router.get(
     query("page").optional().isInt({ min: 1 }),
     query("limit").optional().isInt({ min: 1, max: 100 }),
     query("search").optional().trim(),
-    query("status").optional().isIn(["pending", "approved", "rejected"]),
+    query("status").optional().isIn(["draft", "pending", "approved", "rejected"]),
     query("category").optional().trim(),
     query("startDate").optional().isISO8601(),
     query("endDate").optional().isISO8601(),
@@ -249,6 +249,7 @@ router.post(
         expenseDate,
         receiptUrl,
         ocrData,
+        status = "PENDING", // Default to PENDING, can be DRAFT
       } = req.body;
 
       // Get company currency
@@ -278,44 +279,47 @@ router.post(
         }
       }
 
-      // Get approval workflow
-      const approvalRule = await prisma.approvalRule.findFirst({
-        where: {
-          companyId: req.user.company_id,
-          isActive: true,
-        },
-        include: {
-          approvalSteps: true,
-          specificApprover: true,
-        },
-      });
-
       let currentApproverId = null;
 
-      if (approvalRule) {
-        // Determine current approver based on rule type
-        if (approvalRule.isManagerApprover) {
-          // Find employee's manager
-          const employee = await prisma.user.findUnique({
-            where: { id: req.user.id },
-            include: { manager: true },
-          });
+      // Only set up approval workflow if not a draft
+      if (status !== "DRAFT") {
+        // Get approval workflow
+        const approvalRule = await prisma.approvalRule.findFirst({
+          where: {
+            companyId: req.user.company_id,
+            isActive: true,
+          },
+          include: {
+            approvalSteps: true,
+            specificApprover: true,
+          },
+        });
 
-          if (employee.manager) {
-            currentApproverId = employee.manager.id;
+        if (approvalRule) {
+          // Determine current approver based on rule type
+          if (approvalRule.isManagerApprover) {
+            // Find employee's manager
+            const employee = await prisma.user.findUnique({
+              where: { id: req.user.id },
+              include: { manager: true },
+            });
+
+            if (employee.manager) {
+              currentApproverId = employee.manager.id;
+            }
+          } else if (
+            approvalRule.approvalType === "SEQUENTIAL" &&
+            approvalRule.approvalSteps.length > 0
+          ) {
+            // Set current approver to first step approver
+            currentApproverId = approvalRule.approvalSteps[0].approverId;
+          } else if (
+            approvalRule.approvalType === "SPECIFIC_APPROVER" &&
+            approvalRule.specificApprover
+          ) {
+            // Set current approver to specific approver
+            currentApproverId = approvalRule.specificApprover.id;
           }
-        } else if (
-          approvalRule.approvalType === "SEQUENTIAL" &&
-          approvalRule.approvalSteps.length > 0
-        ) {
-          // Set current approver to first step approver
-          currentApproverId = approvalRule.approvalSteps[0].approverId;
-        } else if (
-          approvalRule.approvalType === "SPECIFIC_APPROVER" &&
-          approvalRule.specificApprover
-        ) {
-          // Set current approver to specific approver
-          currentApproverId = approvalRule.specificApprover.id;
         }
       }
 
@@ -334,7 +338,7 @@ router.post(
           employeeId: req.user.id,
           companyId: req.user.company_id,
           currentApproverId,
-          status: "PENDING",
+          status: status.toUpperCase(),
         },
         include: {
           employee: {
@@ -358,7 +362,7 @@ router.post(
 
       res.status(201).json({
         success: true,
-        message: "Expense submitted successfully",
+        message: status === "DRAFT" ? "Expense saved as draft" : "Expense submitted successfully",
         data: { expense },
       });
     } catch (error) {
@@ -397,7 +401,7 @@ router.put(
         where: {
           id: expenseId,
           employeeId: req.user.id,
-          status: "PENDING",
+          status: { in: ["DRAFT", "PENDING"] },
         },
       });
 
@@ -481,7 +485,7 @@ router.delete("/:expenseId", requireEmployeeOrAbove, async (req, res) => {
       where: {
         id: expenseId,
         employeeId: req.user.id,
-        status: "PENDING",
+        status: { in: ["DRAFT", "PENDING"] },
       },
     });
 

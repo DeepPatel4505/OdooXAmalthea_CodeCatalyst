@@ -150,6 +150,7 @@ enum Role {
 }
 
 enum ExpenseStatus {
+  DRAFT
   PENDING
   APPROVED
   REJECTED
