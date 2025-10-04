@@ -261,13 +261,6 @@ export function ExpenseHistory() {
   const approvedAmount = filteredExpenses
     .filter((expense) => mapExpenseStatus(expense.status) === "approved")
     .reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-  const pendingAmount = filteredExpenses
-    .filter((expense) => mapExpenseStatus(expense.status) === "submitted")
-    .reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
-  
-  const totalExpenses = filteredExpenses.length;
-  const approvedExpenses = filteredExpenses.filter((expense) => mapExpenseStatus(expense.status) === "approved").length;
-  const pendingExpenses = filteredExpenses.filter((expense) => mapExpenseStatus(expense.status) === "submitted").length;
 
   return (
     <div className="space-y-6">
@@ -295,107 +288,9 @@ export function ExpenseHistory() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Submitted</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {totalExpenses} expenses
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              ${approvedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {approvedExpenses} expenses
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">
-              ${pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {pendingExpenses} expenses
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>
-            Filter expenses by status and category
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="relative flex-1 w-full sm:max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search expenses..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {EXPENSE_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tab-based Interface - Matching Mockup - Only for Employees */}
+      {/* Employee View with Tabs */}
       {user?.role !== "ADMIN" && (
-        <Tabs defaultValue="upload" className="w-full">
+        <Tabs defaultValue="new" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
@@ -429,6 +324,8 @@ export function ExpenseHistory() {
             </CardContent>
           </Card>
         </TabsContent>
+        }
+
         
         <TabsContent value="new" className="space-y-6">
           {/* Summary Cards */}
@@ -664,7 +561,7 @@ export function ExpenseHistory() {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+          </TabsContent>
         </Tabs>
       )}
 
