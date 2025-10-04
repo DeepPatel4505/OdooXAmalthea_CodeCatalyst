@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { Toaster } from "sonner";
 import { Layout } from "@/components/layout/Layout";
 import { LandingPage } from "@/pages/LandingPage";
 // import { AuthPage } from "@/pages/AuthPage";
@@ -349,6 +350,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <AppContent />
+        <Toaster position="top-right" richColors />
       </AuthProvider>
     </ThemeProvider>
   );

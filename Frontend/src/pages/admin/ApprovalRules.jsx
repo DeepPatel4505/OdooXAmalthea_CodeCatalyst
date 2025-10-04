@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { userApprovalRulesAPI } from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export function ApprovalRules() {
   const { user } = useAuth();
@@ -92,9 +93,7 @@ export function ApprovalRules() {
         !newRule.ruleName ||
         newRule.approvers.length === 0
       ) {
-        alert(
-          "Please fill in all required fields and select at least one approver."
-        );
+        toast.error("Please fill in all required fields and select at least one approver.");
         return;
       }
 
@@ -107,7 +106,16 @@ export function ApprovalRules() {
         const usersResponse =
           await userApprovalRulesAPI.getUsersWithApprovalRules();
         if (usersResponse.success) {
-          setUsers(usersResponse.data.users || []);
+          const updatedUsers = usersResponse.data.users || [];
+          setUsers(updatedUsers);
+          
+          // Update selectedUser if it's still in the updated list
+          if (selectedUser) {
+            const updatedSelectedUser = updatedUsers.find(user => user.id === selectedUser.id);
+            if (updatedSelectedUser) {
+              setSelectedUser(updatedSelectedUser);
+            }
+          }
         }
         setNewRule({
           userId: "",
@@ -121,10 +129,11 @@ export function ApprovalRules() {
           approvers: [],
         });
         setShowCreateModal(false);
+        toast.success("Approval rule created successfully!");
       }
     } catch (error) {
       console.error("Failed to create rule:", error);
-      alert(`Failed to create approval rule: ${error.message}`);
+      toast.error(`Failed to create approval rule: ${error.message}`);
     }
   };
 
@@ -141,14 +150,24 @@ export function ApprovalRules() {
         const usersResponse =
           await userApprovalRulesAPI.getUsersWithApprovalRules();
         if (usersResponse.success) {
-          setUsers(usersResponse.data.users || []);
+          const updatedUsers = usersResponse.data.users || [];
+          setUsers(updatedUsers);
+          
+          // Update selectedUser if it's still in the updated list
+          if (selectedUser) {
+            const updatedSelectedUser = updatedUsers.find(user => user.id === selectedUser.id);
+            if (updatedSelectedUser) {
+              setSelectedUser(updatedSelectedUser);
+            }
+          }
         }
         setEditingRule(null);
         setShowCreateModal(false);
+        toast.success("Approval rule updated successfully!");
       }
     } catch (error) {
       console.error("Failed to update rule:", error);
-      alert(`Failed to update approval rule: ${error.message}`);
+      toast.error(`Failed to update approval rule: ${error.message}`);
     }
   };
 
@@ -156,27 +175,57 @@ export function ApprovalRules() {
     if (!confirm("Are you sure you want to delete this approval rule?")) return;
 
     try {
+      console.log("🗑️ Deleting rule:", ruleId);
       const response = await userApprovalRulesAPI.deleteUserApprovalRule(
         ruleId
       );
+      
+      console.log("🗑️ Delete response:", response);
+      
       if (response.success) {
-        // Refresh users list
-        const usersResponse =
-          await userApprovalRulesAPI.getUsersWithApprovalRules();
+        // Refresh both users and presets
+        const [usersResponse, presetsResponse] = await Promise.all([
+          userApprovalRulesAPI.getUsersWithApprovalRules(),
+          userApprovalRulesAPI.getPresetRules()
+        ]);
+        
+        console.log("🔄 Refresh responses:", { usersResponse, presetsResponse });
+        
         if (usersResponse.success) {
-          setUsers(usersResponse.data.users || []);
+          const updatedUsers = usersResponse.data.users || [];
+          setUsers(updatedUsers);
+          
+          // Update selectedUser if it's still in the updated list
+          if (selectedUser) {
+            const updatedSelectedUser = updatedUsers.find(user => user.id === selectedUser.id);
+            if (updatedSelectedUser) {
+              setSelectedUser(updatedSelectedUser);
+              console.log("✅ Selected user updated with new rules");
+            }
+          }
+          
+          console.log("✅ Users list updated");
         }
+        
+        if (presetsResponse.success) {
+          setPresets(presetsResponse.data.presets || []);
+          console.log("✅ Presets list updated");
+        }
+        
+        toast.success("Approval rule deleted successfully!");
+      } else {
+        throw new Error(response.message || "Delete failed");
       }
     } catch (error) {
-      console.error("Failed to delete rule:", error);
-      alert(`Failed to delete approval rule: ${error.message}`);
+      console.error("❌ Failed to delete rule:", error);
+      toast.error(`Failed to delete approval rule: ${error.message}`);
     }
   };
 
   const handleApplyPreset = async (presetId) => {
     try {
       if (!selectedUser) {
-        alert("Please select a user first.");
+        toast.error("Please select a user first.");
         return;
       }
 
@@ -189,13 +238,23 @@ export function ApprovalRules() {
         const usersResponse =
           await userApprovalRulesAPI.getUsersWithApprovalRules();
         if (usersResponse.success) {
-          setUsers(usersResponse.data.users || []);
+          const updatedUsers = usersResponse.data.users || [];
+          setUsers(updatedUsers);
+          
+          // Update selectedUser if it's still in the updated list
+          if (selectedUser) {
+            const updatedSelectedUser = updatedUsers.find(user => user.id === selectedUser.id);
+            if (updatedSelectedUser) {
+              setSelectedUser(updatedSelectedUser);
+            }
+          }
         }
         setShowPresetModal(false);
+        toast.success("Preset rule applied successfully!");
       }
     } catch (error) {
       console.error("Failed to apply preset:", error);
-      alert(`Failed to apply preset rule: ${error.message}`);
+      toast.error(`Failed to apply preset rule: ${error.message}`);
     }
   };
 
